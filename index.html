@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Monitor Cripto">
+<title>Monitor Cripto</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: rgba(0,0,0,0); }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0e1116; color: #d6dbe3;
+  font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; }
+button, select, input { font-family: inherit; font-size: 15px; color: #d6dbe3; background: #1f2630;
+  border: 1px solid #323c4a; border-radius: 6px; height: 36px; padding: 0 10px; vertical-align: middle;
+  -webkit-appearance: none; outline: none; }
+button:active { background: #2c3644; }
+select { padding-right: 24px; }
+
+#bar { position: absolute; top: 0; left: 0; right: 0; height: 52px; padding: 8px; background: #161b22;
+  border-bottom: 1px solid #262d38; white-space: nowrap; overflow: hidden; }
+#bar > * { margin-right: 6px; }
+#btnCoins { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+#status { float: right; margin: 0; line-height: 36px; font-size: 13px; color: #8b95a5; }
+#status i { display: inline-block; width: 9px; height: 9px; border-radius: 5px; background: #8b95a5; margin-right: 6px; }
+#status.live i { background: #22c55e; } #status.poll i { background: #eab308; } #status.off i { background: #ef4444; }
+
+#grid { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; }
+#empty { position: absolute; top: 40%; left: 0; right: 0; text-align: center; color: #6b7686; font-size: 16px; padding: 0 20px; }
+
+.panel { position: absolute; border: 1px solid #262d38; background: #0e1116; overflow: hidden; }
+.panel.hit-alvo { border: 2px solid #22c55e; -webkit-animation: blinkG 1s infinite; animation: blinkG 1s infinite; }
+.panel.hit-stop { border: 2px solid #ef4444; -webkit-animation: blinkR 1s infinite; animation: blinkR 1s infinite; }
+@-webkit-keyframes blinkG { 50% { border-color: #0e1116; } } @keyframes blinkG { 50% { border-color: #0e1116; } }
+@-webkit-keyframes blinkR { 50% { border-color: #0e1116; } } @keyframes blinkR { 50% { border-color: #0e1116; } }
+
+.head { height: 34px; line-height: 34px; padding: 0 6px 0 10px; white-space: nowrap; overflow: hidden; border-bottom: 1px solid #1c222b; }
+.head .sym { font-size: 16px; margin-right: 8px; }
+.head .px { font-size: 16px; margin-right: 8px; font-weight: 600; }
+.head .chg { font-size: 13px; margin-right: 8px; }
+.up { color: #26a69a; } .dn { color: #ef5350; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.badge.alvo { background: #22c55e; color: #04130a; } .badge.stop { background: #ef4444; color: #fff; }
+.head .x { float: right; height: 28px; margin-top: 3px; padding: 0 10px; font-size: 14px; background: transparent; border-color: #2a3240; }
+
+.lv { height: 40px; padding: 4px 6px; white-space: nowrap; overflow: hidden; border-bottom: 1px solid #1c222b; }
+.lv input { width: 27%; height: 31px; font-size: 14px; padding: 0 6px; margin-right: 1%; }
+.lv input.e { border-color: #3b82f6; } .lv input.a { border-color: #22c55e; } .lv input.s { border-color: #ef4444; }
+.lv .rr { font-size: 12px; color: #8b95a5; }
+.panel canvas { display: block; }
+
+#picker { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0e1116; z-index: 10; }
+#pickTop { position: absolute; top: 0; left: 0; right: 0; height: 100px; padding: 8px; background: #161b22; border-bottom: 1px solid #262d38; }
+#pickTop .row1, #pickTop .row2 { height: 42px; white-space: nowrap; }
+#search { width: 60%; margin-right: 6px; }
+#btnDone { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; float: right; }
+.tog.on { background: #334155; border-color: #64748b; color: #fff; }
+#count { margin-left: 8px; color: #8b95a5; }
+#list { position: absolute; top: 100px; left: 0; right: 0; bottom: 0; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+.it { height: 46px; line-height: 46px; padding: 0 14px; border-bottom: 1px solid #1a2029; white-space: nowrap; overflow: hidden; }
+.it.sel { background: #13233d; }
+.it .n { display: inline-block; width: 34px; color: #5b6575; font-size: 12px; }
+.it .s { display: inline-block; width: 30%; font-weight: 600; font-size: 15px; }
+.it .p { display: inline-block; width: 30%; }
+.it .c { display: inline-block; width: 18%; }
+.it .ck { float: right; color: #3b82f6; font-size: 18px; font-weight: 700; }
+#listMsg { padding: 30px; text-align: center; color: #6b7686; }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <button id="btnCoins">Moedas</button>
+  <select id="selInt">
+    <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option>
+    <option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option>
+    <option value="4h">4h</option><option value="1d">1d</option>
+  </select>
+  <button id="btnSound">Som: off</button>
+  <p id="status"><i></i><span>parado</span></p>
+</div>
+
+<div id="grid"><div id="empty">Toque em <b>Moedas</b> e escolha até 4 para acompanhar.</div></div>
+
+<div id="picker">
+  <div id="pickTop">
+    <div class="row1">
+      <input id="search" type="text" placeholder="Buscar (ex: SOL)" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <button id="btnDone">Pronto</button>
+    </div>
+    <div class="row2">
+      <button class="tog on" id="togTop">Top 100</button>
+      <button class="tog" id="togAll">Todas (USDT)</button>
+      <span id="count">0/4</span>
+    </div>
+  </div>
+  <div id="list"><div id="listMsg">Carregando lista da Binance...</div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var API_HOSTS = ['https://api.binance.com', 'https://data-api.binance.vision'];
+  var WS_HOSTS = ['wss://stream.binance.com:9443', 'wss://data-stream.binance.vision'];
+  var MAX_CHARTS = 4;
+  var LIMIT = 150;
+  var POLL_MS = 5000;
+  // Moedas estáveis/fiat que não fazem sentido no gráfico contra USDT
+  var SKIP = { USDC: 1, FDUSD: 1, TUSD: 1, BUSD: 1, DAI: 1, USDP: 1, EUR: 1, AEUR: 1, EURI: 1, USD1: 1, XUSD: 1, BFUSD: 1, USDE: 1, PYUSD: 1, RLUSD: 1, GBP: 1, TRY: 1, BRL: 1 };
+
+  var apiIdx = 0, wsIdx = 0;
+  var state = { selected: [], interval: '15m', levels: {}, mode: 'top', sound: false };
+  var charts = {};
+  var tickers = [], tickMap = {}, tickTime = 0;
+  var ws = null, wsGen = 0, wsAlive = false, lastMsg = 0, reconnTimer = null, pollTimer = null;
+  var audioCtx = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid');
+
+  // ---------- estado salvo ----------
+  function load() {
+    try {
+      var s = window.localStorage.getItem('mc_state');
+      if (s) {
+        var o = JSON.parse(s);
+        if (o.selected) state.selected = o.selected.slice(0, MAX_CHARTS);
+        if (o.interval) state.interval = o.interval;
+        if (o.levels) state.levels = o.levels;
+        if (o.mode) state.mode = o.mode;
+      }
+    } catch (e) {}
+  }
+  function save() {
+    try { window.localStorage.setItem('mc_state', JSON.stringify({ selected: state.selected, interval: state.interval, levels: state.levels, mode: state.mode })); } catch (e) {}
+  }
+
+  // ---------- rede ----------
+  function get(path, ok, fail) {
+    var tries = 0;
+    function attempt() {
+      var x = new XMLHttpRequest();
+      x.open('GET', API_HOSTS[apiIdx] + path, true);
+      x.timeout = 15000;
+      x.onload = function () {
+        if (x.status >= 200 && x.status < 300) {
+          var d;
+          try { d = JSON.parse(x.responseText); } catch (e) { return next(); }
+          ok(d);
+        } else { next(); }
+      };
+      x.onerror = next;
+      x.ontimeout = next;
+      x.send();
+    }
+    function next() {
+      tries++;
+      if (tries < API_HOSTS.length) { apiIdx = (apiIdx + 1) % API_HOSTS.length; attempt(); }
+      else if (fail) { fail(); }
+    }
+    attempt();
+  }
+
+  function parseK(a) { return { t: a[0], o: +a[1], h: +a[2], l: +a[3], c: +a[4] }; }
+
+  function merge(c, arr) {
+    if (!c.candles.length) return;
+    for (var i = 0; i < arr.length; i++) {
+      var k = arr[i], last = c.candles[c.candles.length - 1];
+      if (k.t === last.t) { c.candles[c.candles.length - 1] = k; }
+      else if (k.t > last.t) { c.candles.push(k); if (c.candles.length > LIMIT) c.candles.shift(); }
+    }
+    updateHead(c);
+    scheduleDraw(c);
+  }
+
+  function loadKlines(c) {
+    if (c.loading) return;
+    c.loading = true;
+    var interval = state.interval;
+    get('/api/v3/klines?symbol=' + c.sym + '&interval=' + interval + '&limit=' + LIMIT, function (d) {
+      c.loading = false;
+      if (!charts[c.sym] || interval !== state.interval) return;
+      c.candles = d.map(parseK);
+      c.err = '';
+      updateHead(c);
+      scheduleDraw(c);
+    }, function () {
+      c.loading = false;
+      c.err = 'Sem conexão com a Binance';
+      scheduleDraw(c);
+    });
+  }
+
+  function loadTickers(cb) {
+    function done(d) {
+      var out = [];
+      for (var i = 0; i < d.length; i++) {
+        var t = d[i], s = t.symbol;
+        if (s.length < 5 || s.slice(-4) !== 'USDT') continue;
+        var base = s.slice(0, -4);
+        if (SKIP[base]) continue;
+        var qv = +t.quoteVolume, last = +t.lastPrice, open = +t.openPrice;
+        if (!(qv > 0) || !(last > 0)) continue;
+        out.push({ s: s, b: base, p: last, o: open, qv: qv, ch: open > 0 ? (last - open) / open * 100 : 0 });
+      }
+      out.sort(function (a, b) { return b.qv - a.qv; });
+      tickers = out; tickMap = {};
+      for (var j = 0; j < out.length; j++) tickMap[out[j].s] = out[j];
+      tickTime = Date.now();
+      if (cb) cb(true);
+    }
+    get('/api/v3/ticker/24hr?type=MINI', done, function () {
+      get('/api/v3/ticker/24hr', done, function () { if (cb) cb(false); });
+    });
+  }
+
+  // ---------- WebSocket ao vivo (com plano B por consulta a cada 5s) ----------
+  function connect() {
+    wsGen++;
+    var gen = wsGen;
+    wsAlive = false;
+    if (ws) { try { ws.onclose = null; ws.onmessage = null; ws.onerror = null; ws.close(); } catch (e) {} ws = null; }
+    clearTimeout(reconnTimer);
+    if (!state.selected.length) { stopPolling(); setStatus('', 'parado'); return; }
+    startPolling();
+    if (!window.WebSocket) return;
+    var streams = state.selected.map(function (s) { return s.toLowerCase() + '@kline_' + state.interval; }).join('/');
+    var opened = false, sock;
+    try { sock = new WebSocket(WS_HOSTS[wsIdx] + '/stream?streams=' + streams); } catch (e) { fail(); return; }
+    ws = sock;
+    sock.onopen = function () { if (gen === wsGen) opened = true; };
+    sock.onmessage = function (ev) {
+      if (gen !== wsGen) return;
+      lastMsg = Date.now();
+      if (!wsAlive) { wsAlive = true; stopPolling(); setStatus('live', 'ao vivo'); }
+      handleMsg(ev.data);
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () { if (gen === wsGen) fail(); };
+    function fail() {
+      if (gen !== wsGen) return;
+      wsAlive = false; ws = null;
+      if (!opened) wsIdx = (wsIdx + 1) % WS_HOSTS.length;
+      startPolling();
+      reconnTimer = setTimeout(connect, 15000);
+    }
+  }
+
+  function handleMsg(raw) {
+    var m;
+    try { m = JSON.parse(raw); } catch (e) { return; }
+    var d = m.data || m;
+    if (!d || !d.k) return;
+    var c = charts[d.s];
+    if (!c || d.k.i !== state.interval) return;
+    var k = d.k;
+    merge(c, [{ t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c }]);
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollOnce, POLL_MS);
+    pollOnce();
+  }
+  function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  function pollOnce() {
+    state.selected.forEach(function (s) {
+      var c = charts[s];
+      if (!c) return;
+      if (!c.candles.length) { loadKlines(c); return; }
+      var interval = state.interval;
+      get('/api/v3/klines?symbol=' + s + '&interval=' + interval + '&limit=2', function (d) {
+        if (interval !== state.interval || wsAlive) return;
+        merge(c, d.map(parseK));
+        setStatus('poll', 'atualiza a cada 5s');
+      }, function () { if (!wsAlive) setStatus('off', 'sem conexão'); });
+    });
+  }
+
+  // conexão "morta" sem fechar (comum depois que o iPad dorme)
+  setInterval(function () {
+    if (wsAlive && Date.now() - lastMsg > 25000) connect();
+  }, 5000);
+
+  function setStatus(cls, txt) {
+    var el = $('status');
+    el.className = cls;
+    el.getElementsByTagName('span')[0].textContent = txt;
+  }
+
+  // ---------- painéis ----------
+  function makePanel(sym) {
+    var el = document.createElement('div');
+    el.className = 'panel';
+    el.innerHTML =
+      '<div class="head"><button class="x">✕</button><b class="sym"></b><span class="px"></span><span class="chg"></span><span class="badge"></span></div>' +
+      '<div class="lv">' +
+      '<input class="e" data-k="e" type="text" placeholder="Entrada" autocomplete="off" autocorrect="off" spellcheck="false">' +
+      '<input class="a" data-k="a" type="text" placeholder="Alvo" autocomplete="off" autocorrect="off" spellcheck="false">' +
+      '<input class="s" data-k="s" type="text" placeholder="Stop" autocomplete="off" autocorrect="off" spellcheck="false">' +
+      '<span class="rr"></span></div>' +
+      '<canvas></canvas>';
+    grid.appendChild(el);
+    var c = {
+      sym: sym, el: el, candles: [], err: '', hit: '', loading: false, dirty: false,
+      canvas: el.getElementsByTagName('canvas')[0],
+      symEl: el.querySelector('.sym'), pxEl: el.querySelector('.px'), chgEl: el.querySelector('.chg'),
+      badgeEl: el.querySelector('.badge'), rrEl: el.querySelector('.rr')
+    };
+    c.ctx = c.canvas.getContext('2d');
+    c.symEl.textContent = sym.replace(/USDT$/, '') + '/USDT';
+
+    el.querySelector('.x').onclick = function () {
+      state.selected = state.selected.filter(function (s) { return s !== sym; });
+      save(); rebuild(false);
+    };
+    var L = state.levels[sym] || {};
+    var inputs = el.querySelectorAll('.lv input');
+    for (var i = 0; i < inputs.length; i++) {
+      (function (inp) {
+        var k = inp.getAttribute('data-k');
+        if (L[k]) inp.value = String(L[k]);
+        inp.addEventListener('input', function () {
+          var v = parseFloat(inp.value.replace(',', '.'));
+          var lv = state.levels[sym] || (state.levels[sym] = {});
+          if (v > 0) lv[k] = v; else delete lv[k];
+          if (!lv.e && !lv.a && !lv.s) delete state.levels[sym];
+          save(); updateHead(c); scheduleDraw(c);
+        });
+      })(inputs[i]);
+    }
+    return c;
+  }
+
+  function rebuild(reloadAll) {
+    var s;
+    for (s in charts) {
+      if (charts.hasOwnProperty(s) && state.selected.indexOf(s) < 0) { grid.removeChild(charts[s].el); delete charts[s]; }
+    }
+    state.selected.forEach(function (sym) {
+      if (!charts[sym]) { charts[sym] = makePanel(sym); loadKlines(charts[sym]); }
+      else if (reloadAll) { charts[sym].candles = []; charts[sym].loading = false; loadKlines(charts[sym]); }
+    });
+    $('empty').style.display = state.selected.length ? 'none' : 'block';
+    layout();
+    connect();
+  }
+
+  function layout() {
+    var W = grid.clientWidth, H = grid.clientHeight, n = state.selected.length;
+    var land = W > H, boxes = [];
+    if (n === 1) boxes = [[0, 0, 1, 1]];
+    else if (n === 2) boxes = land ? [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]] : [[0, 0, 1, 0.5], [0, 0.5, 1, 0.5]];
+    else if (n === 3) boxes = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 1, 0.5]];
+    else if (n === 4) boxes = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]];
+    state.selected.forEach(function (sym, i) {
+      var c = charts[sym], b = boxes[i];
+      if (!c || !b) return;
+      var x = Math.round(b[0] * W), y = Math.round(b[1] * H);
+      var w = Math.round((b[0] + b[2]) * W) - x, h = Math.round((b[1] + b[3]) * H) - y;
+      c.el.style.left = x + 'px'; c.el.style.top = y + 'px';
+      c.el.style.width = w + 'px'; c.el.style.height = h + 'px';
+      c.cw = Math.max(50, w - 2);
+      c.ch = Math.max(50, h - 2 - 34 - 40);
+      c.canvas.style.width = c.cw + 'px';
+      c.canvas.style.height = c.ch + 'px';
+      scheduleDraw(c);
+    });
+  }
+
+  function lastPrice(c) { return c.candles.length ? c.candles[c.candles.length - 1].c : null; }
+
+  function updateHead(c) {
+    var p = lastPrice(c);
+    c.pxEl.textContent = p == null ? '' : fmt(p);
+    var t = tickMap[c.sym];
+    if (p != null && t && t.o > 0) {
+      var ch = (p - t.o) / t.o * 100;
+      c.chgEl.textContent = (ch >= 0 ? '+' : '') + ch.toFixed(2) + '% 24h';
+      c.chgEl.className = 'chg ' + (ch >= 0 ? 'up' : 'dn');
+    } else { c.chgEl.textContent = ''; }
+
+    var L = state.levels[c.sym] || {}, hit = '';
+    if (L.e && L.a && L.s) {
+      var risk = Math.abs(L.e - L.s), gain = Math.abs(L.a - L.e);
+      c.rrEl.textContent = risk > 0 ? 'R:R 1:' + (gain / risk).toFixed(2) : '';
+    } else { c.rrEl.textContent = ''; }
+    if (p != null && L.a && L.s) {
+      var ref = L.e || (L.a + L.s) / 2;
+      var long = L.a > ref;
+      if (long) { if (p >= L.a) hit = 'alvo'; else if (p <= L.s) hit = 'stop'; }
+      else { if (p <= L.a) hit = 'alvo'; else if (p >= L.s) hit = 'stop'; }
+    }
+    if (hit !== c.hit) {
+      if (hit && c.hit === '') beep(hit === 'alvo' ? 880 : 300);
+      c.hit = hit;
+      c.el.className = 'panel' + (hit ? ' hit-' + hit : '');
+      c.badgeEl.className = 'badge' + (hit ? ' ' + hit : '');
+      c.badgeEl.textContent = hit === 'alvo' ? 'ALVO ATINGIDO' : hit === 'stop' ? 'STOP ATINGIDO' : '';
+    }
+  }
+
+  // ---------- desenho ----------
+  var raf = window.requestAnimationFrame || window.webkitRequestAnimationFrame || function (f) { return setTimeout(f, 30); };
+  var rafPending = false;
+  function scheduleDraw(c) {
+    c.dirty = true;
+    if (rafPending) return;
+    rafPending = true;
+    raf(function () {
+      rafPending = false;
+      for (var s in charts) if (charts.hasOwnProperty(s) && charts[s].dirty) { charts[s].dirty = false; draw(charts[s]); }
+    });
+  }
+
+  function fmt(p) {
+    if (p == null || isNaN(p)) return '-';
+    var a = Math.abs(p);
+    var d = a >= 1000 ? 2 : a >= 100 ? 3 : a >= 1 ? 4 : a >= 0.01 ? 5 : a >= 0.0001 ? 7 : 8;
+    return p.toFixed(d);
+  }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function tLabel(t) {
+    var d = new Date(t);
+    if (state.interval === '1d' || state.interval === '4h') return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  function tag(ctx, x, y, w, text, bg, fg) {
+    ctx.fillStyle = bg;
+    ctx.fillRect(x, y - 9, w, 18);
+    ctx.fillStyle = fg;
+    ctx.fillText(text, x + 4, y + 4);
+  }
+
+  function draw(c) {
+    var cv = c.canvas, ctx = c.ctx, dpr = window.devicePixelRatio || 1;
+    var w = c.cw || cv.clientWidth, h = c.ch || cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#0e1116';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = '11px -apple-system, Helvetica, Arial, sans-serif';
+
+    if (!c.candles.length) {
+      ctx.fillStyle = '#6b7686';
+      ctx.font = '14px -apple-system, Helvetica, Arial, sans-serif';
+      ctx.fillText(c.err || 'Carregando...', 12, 24);
+      return;
+    }
+
+    var axisW = 74, padT = 10, padB = 20;
+    var plotW = w - axisW, plotH = h - padT - padB;
+    var n = Math.max(15, Math.min(c.candles.length, Math.floor(plotW / 6)));
+    var vis = c.candles.slice(-n);
+    n = vis.length;
+    var hi = -Infinity, lo = Infinity, i, k;
+    for (i = 0; i < n; i++) { if (vis[i].h > hi) hi = vis[i].h; if (vis[i].l < lo) lo = vis[i].l; }
+    var L = state.levels[c.sym] || {};
+    var lvList = [];
+    if (L.e) lvList.push({ v: L.e, col: '#3b82f6', n: 'E' });
+    if (L.a) lvList.push({ v: L.a, col: '#22c55e', n: 'A' });
+    if (L.s) lvList.push({ v: L.s, col: '#ef4444', n: 'S' });
+    for (i = 0; i < lvList.length; i++) { if (lvList[i].v > hi) hi = lvList[i].v; if (lvList[i].v < lo) lo = lvList[i].v; }
+    var rng = hi - lo;
+    if (!(rng > 0)) rng = Math.abs(hi) * 0.01 || 1;
+    hi += rng * 0.05; lo -= rng * 0.05; rng = hi - lo;
+    function y(p) { return padT + (hi - p) / rng * plotH; }
+
+    // grade
+    ctx.strokeStyle = '#1c222b'; ctx.lineWidth = 1; ctx.fillStyle = '#6b7686';
+    for (i = 0; i <= 4; i++) {
+      var gp = lo + rng * i / 4, gy = Math.round(y(gp)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(plotW, gy); ctx.stroke();
+      ctx.fillText(fmt(gp), plotW + 5, gy + 4);
+    }
+
+    // candles
+    var step = plotW / n, bw = Math.max(1, Math.floor(step * 0.65));
+    for (i = 0; i < n; i++) {
+      k = vis[i];
+      var cx = Math.floor(i * step + step / 2) + 0.5;
+      var up = k.c >= k.o, col = up ? '#26a69a' : '#ef5350';
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(cx, y(k.h)); ctx.lineTo(cx, y(k.l)); ctx.stroke();
+      var top = y(Math.max(k.o, k.c)), bot = y(Math.min(k.o, k.c));
+      ctx.fillRect(Math.round(cx - bw / 2), Math.round(top), bw, Math.max(1, Math.round(bot - top)));
+    }
+
+    // horários
+    ctx.fillStyle = '#6b7686';
+    var every = Math.max(1, Math.round(n / Math.max(2, Math.floor(plotW / 80))));
+    for (i = n - 1; i >= 0; i -= every) {
+      var tx = i * step + step / 2;
+      var lab = tLabel(vis[i].t);
+      if (tx - 16 > 0) ctx.fillText(lab, tx - 16, h - 6);
+    }
+
+    var p = lastPrice(c);
+    // níveis: entrada, alvo, stop
+    if (ctx.setLineDash) ctx.setLineDash([6, 4]);
+    for (i = 0; i < lvList.length; i++) {
+      var lvv = lvList[i], ly = Math.round(y(lvv.v)) + 0.5;
+      ctx.strokeStyle = lvv.col; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(plotW, ly); ctx.stroke();
+      var dist = (lvv.v - p) / p * 100;
+      ctx.fillStyle = lvv.col;
+      ctx.fillText(lvv.n + ' ' + (dist >= 0 ? '+' : '') + dist.toFixed(2) + '%', 6, ly - 4);
+    }
+    if (ctx.setLineDash) ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+    for (i = 0; i < lvList.length; i++) {
+      tag(ctx, plotW + 1, y(lvList[i].v), axisW - 1, fmt(lvList[i].v), lvList[i].col, '#fff');
+    }
+
+    // preço atual
+    var lastUp = vis[n - 1].c >= vis[n - 1].o;
+    var py = Math.round(y(p)) + 0.5;
+    if (ctx.setLineDash) ctx.setLineDash([2, 3]);
+    ctx.strokeStyle = '#8b95a5';
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(plotW, py); ctx.stroke();
+    if (ctx.setLineDash) ctx.setLineDash([]);
+    tag(ctx, plotW + 1, py, axisW - 1, fmt(p), lastUp ? '#26a69a' : '#ef5350', '#fff');
+  }
+
+  // ---------- som de alerta ----------
+  function unlockAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtx) audioCtx = new AC();
+      var b = audioCtx.createBuffer(1, 1, 22050), src = audioCtx.createBufferSource();
+      src.buffer = b; src.connect(audioCtx.destination);
+      if (src.start) src.start(0); else src.noteOn(0);
+    } catch (e) {}
+  }
+  function beep(freq) {
+    if (!state.sound || !audioCtx) return;
+    try {
+      var t0 = audioCtx.currentTime;
+      for (var r = 0; r < 3; r++) {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.value = 0.25;
+        var st = t0 + r * 0.35;
+        if (o.start) { o.start(st); o.stop(st + 0.2); } else { o.noteOn(st); o.noteOff(st + 0.2); }
+      }
+    } catch (e) {}
+  }
+
+  // ---------- seletor de moedas ----------
+  function openPicker() {
+    $('picker').style.display = 'block';
+    $('search').value = '';
+    setMode(state.mode);
+    if (!tickers.length || Date.now() - tickTime > 60000) {
+      if (!tickers.length) $('list').innerHTML = '<div id="listMsg">Carregando lista da Binance...</div>';
+      loadTickers(function (ok) {
+        if (ok) renderList();
+        else if (!tickers.length) $('list').innerHTML = '<div id="listMsg">Não consegui falar com a Binance. Verifique a internet e tente de novo.</div>';
+      });
+    }
+    renderList();
+  }
+  function closePicker() { $('picker').style.display = 'none'; rebuild(false); }
+
+  function setMode(m) {
+    state.mode = m;
+    $('togTop').className = 'tog' + (m === 'top' ? ' on' : '');
+    $('togAll').className = 'tog' + (m === 'all' ? ' on' : '');
+    save();
+    renderList();
+  }
+
+  function renderList() {
+    $('count').textContent = state.selected.length + '/' + MAX_CHARTS + ' selecionadas';
+    if (!tickers.length) return;
+    var q = $('search').value.toUpperCase().replace(/\s/g, '');
+    var src = state.mode === 'top' && !q ? tickers.slice(0, 100) : tickers;
+    var html = [], shown = 0;
+    for (var i = 0; i < src.length; i++) {
+      var t = src[i];
+      if (q && t.b.indexOf(q) !== 0 && t.s.indexOf(q) < 0) continue;
+      var sel = state.selected.indexOf(t.s) >= 0;
+      html.push('<div class="it' + (sel ? ' sel' : '') + '" data-s="' + t.s + '">' +
+        '<span class="n">' + (i + 1) + '</span><span class="s">' + t.b + '</span>' +
+        '<span class="p">' + fmt(t.p) + '</span>' +
+        '<span class="c ' + (t.ch >= 0 ? 'up' : 'dn') + '">' + (t.ch >= 0 ? '+' : '') + t.ch.toFixed(2) + '%</span>' +
+        '<span class="ck">' + (sel ? '✓' : '') + '</span></div>');
+      if (++shown >= 400) break;
+    }
+    $('list').innerHTML = html.length ? html.join('') : '<div id="listMsg">Nada encontrado.</div>';
+  }
+
+  $('list').addEventListener('click', function (ev) {
+    var el = ev.target;
+    while (el && el !== this && !(el.getAttribute && el.getAttribute('data-s'))) el = el.parentNode;
+    if (!el || el === this) return;
+    var s = el.getAttribute('data-s'), i = state.selected.indexOf(s);
+    if (i >= 0) state.selected.splice(i, 1);
+    else if (state.selected.length < MAX_CHARTS) state.selected.push(s);
+    else { alert('Máximo de ' + MAX_CHARTS + ' moedas. Desmarque uma antes.'); return; }
+    save();
+    renderList();
+  });
+
+  $('search').addEventListener('input', renderList);
+  $('togTop').onclick = function () { setMode('top'); };
+  $('togAll').onclick = function () { setMode('all'); };
+  $('btnDone').onclick = closePicker;
+  $('btnCoins').onclick = openPicker;
+
+  $('selInt').onchange = function () { state.interval = this.value; save(); rebuild(true); };
+  $('btnSound').onclick = function () {
+    state.sound = !state.sound;
+    if (state.sound) { unlockAudio(); beep(660); }
+    this.textContent = 'Som: ' + (state.sound ? 'on' : 'off');
+  };
+
+  // tela girou ou mudou de tamanho
+  var rT = null;
+  function onResize() { clearTimeout(rT); rT = setTimeout(layout, 250); }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+
+  // voltou de tela apagada: recarrega tudo
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) rebuild(true); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) rebuild(true); });
+
+  // atualiza a variação 24h de vez em quando
+  setInterval(function () {
+    if (state.selected.length) loadTickers(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); });
+  }, 300000);
+
+  // ---------- início ----------
+  load();
+  $('selInt').value = state.interval;
+  loadTickers(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); });
+  rebuild(false);
+})();
+</script>
+</body>
+</html>
