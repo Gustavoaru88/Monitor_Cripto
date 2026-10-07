@@ -752,10 +752,8 @@ select { padding-right: 24px; }
         var vh = Math.max(1, Math.round(k.v / vmax * volH));
         var vr = c.vr ? c.vr[off + i] : null;
         if (vr != null && vr >= 2) {
-          // volume fora do normal: barra amarela + faixa de destaque no candle
-          ctx.fillStyle = 'rgba(234,179,8,0.10)';
-          ctx.fillRect(Math.round(xAt(i) - step / 2), padT, Math.ceil(step), plotH);
-          ctx.fillStyle = '#eab308';
+          // volume fora do normal: só a barra acende, na cor do candle
+          ctx.fillStyle = k.c >= k.o ? '#22e0c8' : '#ff4d4d';
         } else {
           ctx.fillStyle = k.c >= k.o ? 'rgba(38,166,154,0.35)' : 'rgba(239,83,80,0.35)';
         }
@@ -766,7 +764,8 @@ select { padding-right: 24px; }
       ctx.fillStyle = '#4b5563';
       ctx.fillText('Vol', 4, vBase - volH + 10);
       if (vrNow != null) {
-        ctx.fillStyle = vrNow >= 2 ? '#eab308' : '#6b7686';
+        var lc = c.candles[len - 1];
+        ctx.fillStyle = vrNow >= 2 ? (lc.c >= lc.o ? '#22e0c8' : '#ff4d4d') : '#6b7686';
         ctx.fillText('x' + vrNow.toFixed(1) + ' média', 26, vBase - volH + 10);
       }
     }
