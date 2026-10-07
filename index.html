@@ -34,12 +34,13 @@ select { padding-right: 24px; }
 @-webkit-keyframes blinkG { 50% { border-color: #0e1116; } } @keyframes blinkG { 50% { border-color: #0e1116; } }
 @-webkit-keyframes blinkR { 50% { border-color: #0e1116; } } @keyframes blinkR { 50% { border-color: #0e1116; } }
 
-.head { position: relative; height: 34px; line-height: 34px; padding: 0 44px 0 10px; white-space: nowrap; overflow: hidden; border-bottom: 1px solid #1c222b; }
+.head { position: relative; height: 34px; line-height: 34px; padding: 0 84px 0 10px; white-space: nowrap; overflow: hidden; border-bottom: 1px solid #1c222b; }
 .head .sym { font-size: 16px; margin-right: 8px; }
 .head .px { font-size: 16px; margin-right: 8px; font-weight: 600; }
 .head .chg { font-size: 13px; margin-right: 8px; }
 .up { color: #26a69a; } .dn { color: #ef5350; }
-.badge { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 8px; }
+.badge:empty { display: none; }
 .badge.alvo { background: #22c55e; color: #04130a; } .badge.stop { background: #ef4444; color: #fff; }
 .head .x { position: absolute; right: 6px; top: 0; height: 28px; margin-top: 3px; padding: 0 10px; font-size: 14px; background: #0e1116; border-color: #2a3240; z-index: 2; box-shadow: -8px 0 6px #0e1116; }
 
@@ -52,6 +53,12 @@ select { padding-right: 24px; }
 .tr.alta { color: #22c55e; } .tr.baixa { color: #ef4444; } .tr.neutro { color: #8b95a5; }
 .head .chg b { font-weight: 400; color: #6b7686; }
 .panel canvas { display: block; }
+.panel.hide { display: none; }
+.head .big { position: absolute; right: 44px; top: 0; height: 28px; margin-top: 3px; padding: 0 9px; font-size: 14px; background: #0e1116; border-color: #2a3240; z-index: 2; box-shadow: -8px 0 6px #0e1116; }
+.zb { display: none; position: absolute; right: 84px; bottom: 30px; z-index: 3; }
+.panel.big .zb { display: block; }
+.zb button { width: 44px; height: 40px; padding: 0; margin-left: 6px; font-size: 20px; background: rgba(31,38,48,0.85); }
+.lv .rr .pl { font-weight: 700; font-size: 12px; }
 
 #picker { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0e1116; z-index: 10; }
 #pickTop { position: absolute; top: 0; left: 0; right: 0; height: 100px; padding: 8px; background: #161b22; border-bottom: 1px solid #262d38; }
@@ -82,10 +89,11 @@ select { padding-right: 24px; }
   </select>
   <button id="btnInd">Indicadores: on</button>
   <button id="btnSound">Som: off</button>
+  <button id="btnLink">Link</button>
   <p id="status"><i></i><span>parado</span></p>
 </div>
 
-<div id="grid"><div id="empty">Toque em <b>Moedas</b> e escolha até 4 para acompanhar.</div></div>
+<div id="grid"><div id="empty">Toque em <b>Moedas</b> e escolha até 4 para acompanhar.<br><small>Toque duas vezes num gráfico para ampliar.</small></div></div>
 
 <div id="picker">
   <div id="pickTop">
@@ -109,7 +117,8 @@ select { padding-right: 24px; }
   var API_HOSTS = ['https://api.binance.com', 'https://data-api.binance.vision'];
   var WS_HOSTS = ['wss://stream.binance.com:9443', 'wss://data-stream.binance.vision'];
   var MAX_CHARTS = 4;
-  var LIMIT = 150;
+  var LIMIT = 300;  // candles guardados (para dar margem ao zoom)
+  var expanded = null; // moeda ampliada em tela cheia
   var POLL_MS = 5000;
   // Moedas estáveis/fiat que não fazem sentido no gráfico contra USDT
   var SKIP = { USDC: 1, FDUSD: 1, TUSD: 1, BUSD: 1, DAI: 1, USDP: 1, EUR: 1, AEUR: 1, EURI: 1, USD1: 1, XUSD: 1, BFUSD: 1, USDE: 1, PYUSD: 1, RLUSD: 1, GBP: 1, TRY: 1, BRL: 1 };
@@ -140,7 +149,54 @@ select { padding-right: 24px; }
       }
     } catch (e) {}
   }
+  // ---------- link com as moedas: ?m=BTC,SEI&t=15m ----------
+  function linkQuery() {
+    return '?m=' + state.selected.map(function (s) { return s.replace(/USDT$/, ''); }).join(',') + '&t=' + state.interval;
+  }
+  function linkUrl() { return location.href.split('?')[0].split('#')[0] + linkQuery(); }
+  function syncUrl() {
+    try { if (window.history && history.replaceState) history.replaceState(null, '', linkQuery()); } catch (e) {}
+  }
+  // aplica o link só quando é um link "novo"; reabrir o mesmo favorito mantém o que você mudou depois
+  function applyLink() {
+    var q = location.search;
+    if (!q || q.indexOf('m=') < 0) return;
+    var last = null;
+    try { last = window.localStorage.getItem('mc_lastlink'); } catch (e) {}
+    if (last === q) return;
+    try { window.localStorage.setItem('mc_lastlink', q); } catch (e) {}
+    var mm = /[?&]m=([^&]*)/.exec(q), tt = /[?&]t=([^&]*)/.exec(q);
+    if (mm) {
+      var list = decodeURIComponent(mm[1]).toUpperCase().split(/[,; ]+/), out = [];
+      for (var i = 0; i < list.length && out.length < MAX_CHARTS; i++) {
+        var s = list[i].replace(/[^A-Z0-9]/g, '');
+        if (!s) continue;
+        if (!/USDT$/.test(s)) s += 'USDT';
+        if (out.indexOf(s) < 0) out.push(s);
+      }
+      if (out.length) state.selected = out;
+    }
+    if (tt && IV_MS[tt[1]]) state.interval = tt[1];
+    save();
+  }
+  function copyText(txt) {
+    var ok = false;
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute'; ta.style.left = '-9999px'; ta.style.fontSize = '16px';
+      document.body.appendChild(ta);
+      var r = document.createRange(); r.selectNodeContents(ta);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      ta.setSelectionRange(0, txt.length);
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e) {}
+    return ok;
+  }
+
   function save() {
+    syncUrl();
     try { window.localStorage.setItem('mc_state', JSON.stringify({ selected: state.selected, interval: state.interval, levels: state.levels, mode: state.mode, ind: state.ind })); } catch (e) {}
   }
 
@@ -201,6 +257,14 @@ select { padding-right: 24px; }
     c.e9 = ema(cl, 9); c.e21 = ema(cl, 21); c.rs = rsi(cl, 14);
     var n = cl.length - 1, p = cl[n], a = c.e9[n], b = c.e21[n], r = c.rs[n];
     c.rsi = r;
+    // volume em relação à média dos 20 candles anteriores
+    c.vr = [];
+    var sum = 0, j;
+    for (j = 0; j < c.candles.length; j++) {
+      c.vr.push(j >= 20 && sum > 0 ? c.candles[j].v / (sum / 20) : null);
+      sum += c.candles[j].v;
+      if (j >= 20) sum -= c.candles[j - 20].v;
+    }
     if (a == null || b == null || r == null) c.trend = '';
     else if (a > b && p > b && r > 50) c.trend = 'alta';
     else if (a < b && p < b && r < 50) c.trend = 'baixa';
@@ -358,13 +422,14 @@ select { padding-right: 24px; }
     var el = document.createElement('div');
     el.className = 'panel';
     el.innerHTML =
-      '<div class="head"><button class="x">✕</button><b class="sym"></b><span class="px"></span><span class="chg"></span><span class="tr"></span><span class="badge"></span></div>' +
+      '<div class="head"><button class="big">⤢</button><button class="x">✕</button><b class="sym"></b><span class="px"></span><span class="badge"></span><span class="chg"></span><span class="tr"></span></div>' +
       '<div class="lv">' +
       '<input class="e" data-k="e" type="text" placeholder="Entrada" autocomplete="off" autocorrect="off" spellcheck="false">' +
       '<input class="a" data-k="a" type="text" placeholder="Alvo" autocomplete="off" autocorrect="off" spellcheck="false">' +
       '<input class="s" data-k="s" type="text" placeholder="Stop" autocomplete="off" autocorrect="off" spellcheck="false">' +
       '<span class="rr"></span></div>' +
-      '<canvas></canvas>';
+      '<canvas></canvas>' +
+      '<div class="zb"><button data-z="out">−</button><button data-z="in">+</button><button data-z="r">⟲</button></div>';
     grid.appendChild(el);
     var c = {
       sym: sym, el: el, candles: [], err: '', hit: '', loading: false, dirty: false,
@@ -377,8 +442,21 @@ select { padding-right: 24px; }
 
     el.querySelector('.x').onclick = function () {
       state.selected = state.selected.filter(function (s) { return s !== sym; });
+      if (expanded === sym) expanded = null;
       save(); rebuild(false);
     };
+    el.querySelector('.big').onclick = function () { toggleExpand(c); };
+    c.vn = null; c.pan = 0;   // zoom (candles visíveis) e deslocamento para trás
+    var zbs = el.querySelectorAll('.zb button');
+    for (var zi = 0; zi < zbs.length; zi++) {
+      zbs[zi].onclick = function () {
+        var z = this.getAttribute('data-z');
+        if (z === 'r') { c.vn = null; c.pan = 0; }
+        else zoomBy(c, z === 'in' ? 0.7 : 1 / 0.7);
+        scheduleDraw(c);
+      };
+    }
+    bindGestures(c);
     var L = state.levels[sym] || {};
     var inputs = el.querySelectorAll('.lv input');
     for (var i = 0; i < inputs.length; i++) {
@@ -400,6 +478,74 @@ select { padding-right: 24px; }
       })(inputs[i]);
     }
     return c;
+  }
+
+  // ---------- ampliar / zoom / arrastar ----------
+  function toggleExpand(c) {
+    expanded = expanded === c.sym ? null : c.sym;
+    if (!expanded) { c.vn = null; c.pan = 0; }
+    layout();
+  }
+  function curVn(c) { return c.vn || c.autoN || 60; }
+  function zoomBy(c, f) {
+    var len = c.candles.length || LIMIT;
+    c.vn = Math.max(15, Math.min(len, Math.round(curVn(c) * f)));
+    c.pan = Math.max(0, Math.min(c.pan, len - c.vn));
+  }
+  function panBy(c, dx) {
+    if (!c.step) return;
+    var len = c.candles.length, vn = curVn(c);
+    c.pan = Math.max(0, Math.min(len - vn, c.pan + dx / c.step));
+    scheduleDraw(c);
+  }
+  function bindGestures(c) {
+    var cv = c.canvas, lastTap = 0, tapX = 0, tapY = 0, moved = false;
+    var startX = 0, startPan = 0, pinch0 = 0, vn0 = 0, mode = '';
+    function dist(t) { var dx = t[0].pageX - t[1].pageX, dy = t[0].pageY - t[1].pageY; return Math.sqrt(dx * dx + dy * dy); }
+    var opt = { passive: false };
+    cv.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      moved = false;
+      if (e.touches.length === 2) { mode = 'pinch'; pinch0 = dist(e.touches); vn0 = curVn(c); }
+      else if (e.touches.length === 1) { mode = 'pan'; startX = e.touches[0].pageX; startPan = c.pan; tapX = startX; tapY = e.touches[0].pageY; }
+    }, opt);
+    cv.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      if (expanded !== c.sym) { moved = true; return; }
+      if (mode === 'pinch' && e.touches.length === 2) {
+        moved = true;
+        var len = c.candles.length || LIMIT;
+        c.vn = Math.max(15, Math.min(len, Math.round(vn0 * pinch0 / dist(e.touches))));
+        c.pan = Math.max(0, Math.min(c.pan, len - c.vn));
+        scheduleDraw(c);
+      } else if (mode === 'pan' && e.touches.length === 1) {
+        var dx = e.touches[0].pageX - startX;
+        if (Math.abs(dx) > 8) moved = true;
+        c.pan = startPan; panBy(c, dx);
+      }
+    }, opt);
+    cv.addEventListener('touchend', function (e) {
+      e.preventDefault();
+      if (e.touches.length) return;
+      if (mode === 'pan' && !moved) {
+        var now = Date.now();
+        if (now - lastTap < 350 && Math.abs(tapX - lastX) < 30) { lastTap = 0; toggleExpand(c); }
+        else { lastTap = now; lastX = tapX; }
+      }
+      mode = '';
+    }, opt);
+    var lastX = 0;
+    // computador: duplo clique, roda do mouse e arrastar
+    cv.addEventListener('dblclick', function () { toggleExpand(c); });
+    cv.addEventListener('wheel', function (e) {
+      if (expanded !== c.sym) return;
+      e.preventDefault();
+      zoomBy(c, e.deltaY > 0 ? 1.15 : 1 / 1.15); scheduleDraw(c);
+    }, opt);
+    var drag = false;
+    cv.addEventListener('mousedown', function (e) { if (expanded === c.sym) { drag = true; startX = e.pageX; startPan = c.pan; } });
+    window.addEventListener('mousemove', function (e) { if (drag) { c.pan = startPan; panBy(c, e.pageX - startX); } });
+    window.addEventListener('mouseup', function () { drag = false; });
   }
 
   function rebuild(reloadAll) {
@@ -424,9 +570,16 @@ select { padding-right: 24px; }
     else if (n === 2) boxes = land ? [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]] : [[0, 0, 1, 0.5], [0, 0.5, 1, 0.5]];
     else if (n === 3) boxes = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 1, 0.5]];
     else if (n === 4) boxes = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]];
+    if (expanded && state.selected.indexOf(expanded) < 0) expanded = null;
     state.selected.forEach(function (sym, i) {
       var c = charts[sym], b = boxes[i];
       if (!c || !b) return;
+      if (expanded) {
+        if (sym !== expanded) { c.el.className = c.el.className.replace(/ ?(hide|big)/g, '') + ' hide'; return; }
+        b = [0, 0, 1, 1];
+      }
+      c.el.className = c.el.className.replace(/ ?(hide|big)/g, '') + (expanded ? ' big' : '');
+      c.el.querySelector('.big').textContent = expanded ? '⤡' : '⤢';
       var x = Math.round(b[0] * W), y = Math.round(b[1] * H);
       var w = Math.round((b[0] + b[2]) * W) - x, h = Math.round((b[1] + b[3]) * H) - y;
       c.el.style.left = x + 'px'; c.el.style.top = y + 'px';
@@ -459,13 +612,19 @@ select { padding-right: 24px; }
       c.trEl.textContent = c.trend === 'alta' ? '▲ ALTA' : c.trend === 'baixa' ? '▼ BAIXA' : '● NEUTRO';
     } else { c.trEl.textContent = ''; }
 
-    var L = state.levels[c.sym] || {}, hit = '', rr = [];
-    if (L.et) rr.push('<span class="et">⏱ ' + dtLabel(L.et) + '</span>');
+    var L = state.levels[c.sym] || {}, hit = '', l1 = [], l2 = [];
+    // resultado ao vivo desde a entrada (compra se o alvo está acima da entrada)
+    if (L.e && p != null) {
+      var isLong = L.a ? L.a > L.e : (L.s ? L.s < L.e : true);
+      var pl = (p - L.e) / L.e * 100 * (isLong ? 1 : -1);
+      l2.push('<span class="pl ' + (pl >= 0 ? 'up' : 'dn') + '">' + (pl >= 0 ? '+' : '') + pl.toFixed(2) + '%</span>');
+    }
+    if (L.et) l1.push('<span class="et">⏱ ' + dtShort(L.et) + ' · ' + durLabel(Date.now() - L.et) + '</span>');
     if (L.e && L.a && L.s) {
       var risk = Math.abs(L.e - L.s), gain = Math.abs(L.a - L.e);
-      if (risk > 0) rr.push('R:R 1:' + (gain / risk).toFixed(2));
+      if (risk > 0) l2.push('R:R 1:' + (gain / risk).toFixed(1));
     }
-    c.rrEl.innerHTML = rr.join('<br>');
+    c.rrEl.innerHTML = l1.join('') + (l1.length && l2.length ? '<br>' : '') + l2.join(' · ');
     if (p != null && L.a && L.s) {
       var ref = L.e || (L.a + L.s) / 2;
       var long = L.a > ref;
@@ -475,7 +634,7 @@ select { padding-right: 24px; }
     if (hit !== c.hit) {
       if (hit && c.hit === '') beep(hit === 'alvo' ? 880 : 300);
       c.hit = hit;
-      c.el.className = 'panel' + (hit ? ' hit-' + hit : '');
+      c.el.className = c.el.className.replace(/ ?hit-\w+/g, '') + (hit ? ' hit-' + hit : '');
       c.badgeEl.className = 'badge' + (hit ? ' ' + hit : '');
       c.badgeEl.textContent = hit === 'alvo' ? '✓ ALVO' : hit === 'stop' ? '✕ STOP' : '';
     }
@@ -502,6 +661,18 @@ select { padding-right: 24px; }
   }
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
   function dtLabel(t) { var d = new Date(t); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  // data curta: só a hora se for hoje
+  function dtShort(t) {
+    var d = new Date(t), n = new Date();
+    var hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    return d.toDateString() === n.toDateString() ? hm : pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' ' + hm;
+  }
+  function durLabel(ms) {
+    var m = Math.max(0, Math.floor(ms / 6e4)), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    if (d > 0) return d + 'd ' + (h % 24) + 'h';
+    if (h > 0) return h + 'h' + pad2(m % 60);
+    return m + 'min';
+  }
   // mostra o nível exatamente como foi digitado (sem arredondar)
   function fmtL(v) { var s = String(v); return s.indexOf('e') >= 0 ? fmt(v) : s; }
   function tLabel(t) {
@@ -539,9 +710,12 @@ select { padding-right: 24px; }
     var axisW = 74, padT = 10, padB = 20;
     var plotW = w - axisW, plotH = h - padT - padB;
     var volH = Math.round(plotH * 0.16), priceH = plotH - volH - 4;
-    var n = Math.max(15, Math.min(c.candles.length, Math.floor(plotW / 6)));
-    var off = Math.max(0, c.candles.length - n);
-    var vis = c.candles.slice(off);
+    var len = c.candles.length;
+    c.autoN = Math.max(15, Math.min(len, Math.floor(plotW / 6), 150));
+    var n = c.vn ? Math.max(15, Math.min(len, c.vn)) : c.autoN;
+    c.pan = Math.max(0, Math.min(c.pan || 0, len - n));
+    var off = Math.max(0, len - n - Math.round(c.pan));
+    var vis = c.candles.slice(off, off + n);
     n = vis.length;
     var hi = -Infinity, lo = Infinity, vmax = 0, i, k;
     for (i = 0; i < n; i++) {
@@ -559,6 +733,7 @@ select { padding-right: 24px; }
     hi += rng * 0.05; lo -= rng * 0.05; rng = hi - lo;
     function y(p) { return padT + (hi - p) / rng * priceH; }
     var step = plotW / n, bw = Math.max(1, Math.floor(step * 0.65));
+    c.step = step;
     function xAt(i) { return Math.floor(i * step + step / 2) + 0.5; }
 
     // grade
@@ -575,11 +750,25 @@ select { padding-right: 24px; }
       for (i = 0; i < n; i++) {
         k = vis[i];
         var vh = Math.max(1, Math.round(k.v / vmax * volH));
-        ctx.fillStyle = k.c >= k.o ? 'rgba(38,166,154,0.35)' : 'rgba(239,83,80,0.35)';
+        var vr = c.vr ? c.vr[off + i] : null;
+        if (vr != null && vr >= 2) {
+          // volume fora do normal: barra amarela + faixa de destaque no candle
+          ctx.fillStyle = 'rgba(234,179,8,0.10)';
+          ctx.fillRect(Math.round(xAt(i) - step / 2), padT, Math.ceil(step), plotH);
+          ctx.fillStyle = '#eab308';
+        } else {
+          ctx.fillStyle = k.c >= k.o ? 'rgba(38,166,154,0.35)' : 'rgba(239,83,80,0.35)';
+        }
         ctx.fillRect(Math.round(xAt(i) - bw / 2), vBase - vh, bw, vh);
       }
+      // multiplicador do candle atual em relação à média de 20
+      var vrNow = c.vr ? c.vr[len - 1] : null;
       ctx.fillStyle = '#4b5563';
       ctx.fillText('Vol', 4, vBase - volH + 10);
+      if (vrNow != null) {
+        ctx.fillStyle = vrNow >= 2 ? '#eab308' : '#6b7686';
+        ctx.fillText('x' + vrNow.toFixed(1) + ' média', 26, vBase - volH + 10);
+      }
     }
 
     // candles
@@ -648,7 +837,7 @@ select { padding-right: 24px; }
     if (L.e && L.et) {
       var ms = IV_MS[state.interval] || 6e4, ei = -1;
       for (i = 0; i < n; i++) if (L.et >= vis[i].t && L.et < vis[i].t + ms) { ei = i; break; }
-      if (ei < 0 && L.et >= vis[n - 1].t) ei = n - 1;
+      if (ei < 0 && off + n === len && L.et >= vis[n - 1].t) ei = n - 1;
       if (ei >= 0) {
         var ex = xAt(ei);
         if (ctx.setLineDash) ctx.setLineDash([2, 3]);
@@ -677,8 +866,9 @@ select { padding-right: 24px; }
     }
 
     // preço atual
-    var lastUp = vis[n - 1].c >= vis[n - 1].o;
+    var lk = c.candles[len - 1], lastUp = lk.c >= lk.o;
     var py = Math.round(y(p)) + 0.5;
+    if (p > hi || p < lo) return;  // gráfico deslocado para o passado: preço atual fora da tela
     if (ctx.setLineDash) ctx.setLineDash([2, 3]);
     ctx.strokeStyle = '#8b95a5';
     ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(plotW, py); ctx.stroke();
@@ -802,9 +992,19 @@ select { padding-right: 24px; }
 
   // ---------- início ----------
   setInterval(loadH1, 60000);
+  // atualiza o tempo de operação mesmo sem tick novo
+  setInterval(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); }, 30000);
 
   load();
+  applyLink();
+  syncUrl();
   indLabel();
+  $('btnLink').onclick = function () {
+    if (!state.selected.length) { alert('Escolha pelo menos uma moeda primeiro.'); return; }
+    var url = linkUrl();
+    if (copyText(url)) alert('Link copiado:\n\n' + url + '\n\nSalve nos favoritos ou abra em outro aparelho.');
+    else prompt('Copie o link abaixo:', url);
+  };
   $('selInt').value = state.interval;
   loadTickers(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); });
   rebuild(false);
