@@ -25,8 +25,12 @@
   "atr_min_pct": 0.15,
   "esticado_max_atr": 2.5,
 
+  "subida_candles": 30,
+  "subida_max_atr": 6,
+  "pausa_apos_stop_candles": 10,
+
   "stop_candles": 5,
-  "stop_atr": 1.5,
+  "stop_atr": 2,
   "risco_max_atr": 3,
   "alvo1_r": 1.5,
   "alvo2_r": 3,

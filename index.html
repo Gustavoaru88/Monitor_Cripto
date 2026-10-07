@@ -105,6 +105,10 @@ select { padding-right: 24px; }
 .ra .sc { display: inline-block; width: 40px; text-align: center; background: #2563eb; color: #fff; font-weight: 700; border-radius: 4px; font-size: 13px; padding: 2px 0; margin-right: 12px; vertical-align: middle; }
 .ra .rd { display: inline-block; font-size: 12px; color: #8b95a5; line-height: 16px; vertical-align: middle; }
 .ra button { float: right; margin-top: 2px; }
+.ra .st { float: right; margin: 8px 12px 0 0; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background: #1f2630; color: #8b95a5; }
+.ra .st.win { background: #14532d; color: #4ade80; } .ra .st.loss { background: #450a0a; color: #f87171; }
+#rdScore { font-size: 13px; font-weight: 600; padding: 3px 4px 0; }
+#rdList { top: 104px; }
 </style>
 </head>
 <body>
@@ -146,10 +150,12 @@ select { padding-right: 24px; }
     <div class="row1">
       <b>Radar de sinais</b>
       <button class="tog on" id="rdTog">Radar: on</button>
+      <button id="rdTf">Só este tempo</button>
       <button id="rdClear">Limpar</button>
       <button id="rdClose">Fechar</button>
     </div>
     <div id="rdInfo"></div>
+    <div id="rdScore"></div>
   </div>
   <div id="rdList"></div>
 </div>
@@ -181,7 +187,8 @@ select { padding-right: 24px; }
     peso_tendencia: 20, peso_tendencia_maior: 20, peso_ema50: 10, peso_rsi: 15, peso_volume: 15, peso_estrutura: 15, peso_candle: 5,
     rsi_min: 50, rsi_max: 70, rsi_bloqueio: 75, volume_mult: 1.5, rompimento_candles: 15, pullback_tolerancia_pct: 0.2,
     lateral_candles: 20, lateral_max_cruzamentos: 3, atr_periodo: 14, atr_min_pct: 0.15, esticado_max_atr: 2.5,
-    stop_candles: 5, stop_atr: 1.5, risco_max_atr: 3, alvo1_r: 1.5, alvo2_r: 3, intervalo_min_candles: 5,
+    subida_candles: 30, subida_max_atr: 6, pausa_apos_stop_candles: 10,
+    stop_candles: 5, stop_atr: 2, risco_max_atr: 3, alvo1_r: 1.5, alvo2_r: 3, intervalo_min_candles: 5,
     tempo_maior: { '1m': '15m', '3m': '15m', '5m': '1h', '15m': '1h', '30m': '4h', '1h': '4h', '4h': '1d', '1d': '1w' },
     radar: { top: 30, atualizar_lista_min: 60, fixas: [], so_fixas: false }
   };
@@ -422,7 +429,7 @@ select { padding-right: 24px; }
     var e50 = ema(cl, 50), at = atr(cs, R.atr_periodo), e9 = c.e9, e21 = c.e21, rs = c.rs;
     var h = (c.htf && c.htfIv === R.tempo_maior[state.interval]) ? c.htf : null;
     var hms = h ? IV_MS[c.htfIv] : 0, hi = -1;
-    var sigs = [], lastStrong = -999, lastAny = -999, openUntil = -1, i, j, k;
+    var sigs = [], lastStrong = -999, lastAny = -999, openUntil = -1, pausedUntil = -1, i, j, k;
 
     for (i = 50; i <= last; i++) {
       k = cs[i];
@@ -440,6 +447,11 @@ select { padding-right: 24px; }
       if (cross >= R.lateral_max_cruzamentos) continue;               // mercado de lado
       if (a / k.c * 100 < R.atr_min_pct) continue;                    // pouca volatilidade
       if (r > R.rsi_bloqueio || (k.c - e21[i]) / a > R.esticado_max_atr) continue;  // esticado
+      if (i <= pausedUntil) continue;                                  // pausa depois de um stop
+      // subida longa: preço já subiu demais desde a mínima recente ("fim da festa")
+      var lowRun = Infinity;
+      for (j = Math.max(0, i - R.subida_candles + 1); j <= i; j++) if (cs[j].l < lowRun) lowRun = cs[j].l;
+      if ((k.c - lowRun) / a > R.subida_max_atr) continue;
 
       // gatilho: rompimento ou pullback na EMA21
       var hh = -Infinity;
@@ -488,7 +500,11 @@ select { padding-right: 24px; }
       resolveSig(s, cs, last);
       sigs.push(s);
       lastAny = i;
-      if (strong) { lastStrong = i; openUntil = s.end; }
+      if (strong) {
+        lastStrong = i; openUntil = s.end;
+        // o stop só é conhecido quando acontece (candle s.end); a pausa começa dali
+        if (s.res === 'stop') pausedUntil = s.end + R.pausa_apos_stop_candles;
+      }
     }
 
     // tira o sinal fraco quando um forte aparece logo em seguida (evita etiquetas sobrepostas)
@@ -1404,6 +1420,7 @@ select { padding-right: 24px; }
         if (idx >= list.length) {
           radar.scanning = false; radar.lastScan = Date.now();
           radarBtn(); radarInfo(); radarSchedule();
+          radarTrack();
           return;
         }
         var sym = list[idx++];
@@ -1452,7 +1469,7 @@ select { padding-right: 24px; }
     } catch (e) {}
   }
   function radarSave() {
-    try { window.localStorage.setItem('mc_radar', JSON.stringify(radar.alerts.slice(0, 50))); } catch (e) {}
+    try { window.localStorage.setItem('mc_radar', JSON.stringify(radar.alerts.slice(0, 100))); } catch (e) {}
   }
   function radarAlert(sym, iv, g) {
     var id = sym + '|' + iv + '|' + g.t;
@@ -1460,7 +1477,7 @@ select { padding-right: 24px; }
     radar.seen[id] = 1;
     var a = { id: id, sym: sym, iv: iv, score: g.score, tipo: g.tipo, det: g.det, e: g.e, s: g.s, t1: g.t1, t2: g.t2, t: g.t, at: Date.now() };
     radar.alerts.unshift(a);
-    if (radar.alerts.length > 50) radar.alerts.length = 50;
+    if (radar.alerts.length > 100) radar.alerts.length = 100;
     radar.unseen++;
     radarSave(); radarBtn(); radarInfo();
     showToast(a);
@@ -1500,15 +1517,68 @@ select { padding-right: 24px; }
     $('rdInfo').textContent = info;
     $('rdTog').textContent = 'Radar: ' + (state.radar ? 'on' : 'off');
     $('rdTog').className = 'tog' + (state.radar ? ' on' : '');
-    var html = [];
-    for (var i = 0; i < radar.alerts.length; i++) {
-      var a = radar.alerts[i];
-      html.push('<div class="ra" data-i="' + i + '"><b>' + a.sym.replace(/USDT$/, '') + '</b>' +
-        '<span class="sc">' + a.score + '</span>' +
-        '<span class="rd">' + a.iv + ' · ' + a.tipo + ' · há ' + ago(a) + '<br>E ' + fmt(a.e) + ' · S ' + fmt(a.s) + ' · A1 ' + fmt(a.t1) + '</span>' +
-        '<button>Abrir</button></div>');
+    // filtro por tempo gráfico + ordem pela hora do sinal (mais novo primeiro)
+    $('rdTf').textContent = radar.allTf ? 'Todos os tempos' : 'Só ' + state.interval;
+    $('rdTf').className = 'tog' + (radar.allTf ? '' : ' on');
+    var rows = radar.alerts.filter(function (a) { return radar.allTf || a.iv === state.interval; });
+    rows.sort(function (x, y) { return (y.t + IV_MS[y.iv]) - (x.t + IV_MS[x.iv]); });
+
+    // placar real do radar
+    var sc = { n: 0, w: 0, l: 0, r: 0, ab: 0 };
+    rows.forEach(function (a) {
+      if (a.res === 'stop') { sc.n++; sc.l++; sc.r += a.r; }
+      else if (a.res === 'alvo1' || a.res === 'alvo2') { sc.n++; sc.w++; sc.r += a.r; }
+      else sc.ab++;
+    });
+    var scEl = $('rdScore');
+    if (!rows.length) { scEl.textContent = ''; }
+    else if (!sc.n) { scEl.style.color = '#8b95a5'; scEl.textContent = 'Placar: nenhum sinal encerrado ainda · ' + sc.ab + ' em andamento'; }
+    else {
+      scEl.style.color = sc.r >= 0 ? '#4ade80' : '#f87171';
+      scEl.textContent = 'Placar' + (radar.allTf ? '' : ' (' + state.interval + ')') + ': ' + sc.n + ' encerrados · ✓' + sc.w + ' ✕' + sc.l +
+        ' · ' + Math.round(sc.w / sc.n * 100) + '% · ' + (sc.r >= 0 ? '+' : '') + sc.r.toFixed(1) + 'R' +
+        (sc.ab ? ' · ' + sc.ab + ' em andamento' : '') + ' (sem taxas)';
     }
-    $('rdList').innerHTML = html.length ? html.join('') : '<div id="listMsg">Nenhum sinal ainda. Os avisos aparecem aqui e no canto da tela.</div>';
+
+    var html = [];
+    for (var i = 0; i < rows.length; i++) {
+      var a = rows[i], st;
+      if (a.res === 'stop') st = '<span class="st loss">✕ Stop -1R</span>';
+      else if (a.res === 'alvo2') st = '<span class="st win">✓✓ Alvo 2 +' + a.r.toFixed(2) + 'R</span>';
+      else if (a.res === 'alvo1') st = '<span class="st win">✓ Alvo 1 +' + a.r.toFixed(2) + 'R</span>';
+      else if (a.res === 'alvo1aberto') st = '<span class="st win">✓ Alvo 1 · segue</span>';
+      else st = '<span class="st">em andamento</span>';
+      html.push('<div class="ra" data-id="' + a.id + '"><b>' + a.sym.replace(/USDT$/, '') + '</b>' +
+        '<span class="sc">' + a.score + '</span>' +
+        '<span class="rd">' + a.iv + ' · ' + a.tipo + ' · ' + dtShort(a.t + IV_MS[a.iv]) + ' (há ' + ago(a) + ')' +
+        '<br>E ' + fmt(a.e) + ' · S ' + fmt(a.s) + ' · A1 ' + fmt(a.t1) + ' · A2 ' + fmt(a.t2) + '</span>' +
+        '<button>Abrir</button>' + st + '</div>');
+    }
+    $('rdList').innerHTML = html.length ? html.join('') :
+      '<div id="listMsg">' + (radar.alerts.length ? 'Nenhum sinal no ' + state.interval + '. Toque em "Só ' + state.interval + '" para ver todos.' : 'Nenhum sinal ainda. Os avisos aparecem aqui e no canto da tela.') + '</div>';
+  }
+
+  // acompanha o que aconteceu com cada sinal (mesma regra do teste: metade no alvo 1, stop vai para a entrada)
+  function radarTrack(done) {
+    if (radar.tracking) { if (done) done(); return; }
+    var pend = radar.alerts.filter(function (a) { return !a.res || a.res === 'aberto' || a.res === 'alvo1aberto'; });
+    if (!pend.length) { if (done) done(); return; }
+    radar.tracking = true; radar.trackT = Date.now();
+    var idx = 0;
+    function next() {
+      if (idx >= pend.length) { radar.tracking = false; radarSave(); radarInfo(); if (done) done(); return; }
+      var a = pend[idx++];
+      get('/api/v3/klines?symbol=' + a.sym + '&interval=' + a.iv + '&startTime=' + a.t + '&limit=1000', function (d) {
+        var cs = d.map(parseK);
+        if (cs.length && cs[0].t === a.t) {
+          var s = { i: 0, e: a.e, s: a.s, t1: a.t1, t2: a.t2 };
+          resolveSig(s, cs, cs.length - 2);   // só candles fechados
+          a.res = s.res; a.r = s.r;
+        }
+        setTimeout(next, 350);
+      }, function () { setTimeout(next, 350); });
+    }
+    next();
   }
 
   // abre a moeda: painel livre, ou substitui o último sem operação marcada; depois amplia
@@ -1540,6 +1610,7 @@ select { padding-right: 24px; }
     radar.unseen = 0; radarBtn();
     $('radarBox').style.display = 'block';
     radarInfo();
+    if (Date.now() - (radar.trackT || 0) > 60000) radarTrack();
   }
 
   // ---------- início ----------
@@ -1565,9 +1636,11 @@ select { padding-right: 24px; }
     if (!radar.alerts.length || !confirm('Apagar a lista de avisos?')) return;
     radar.alerts = []; radarSave(); radarInfo();
   };
+  $('rdTf').onclick = function () { radar.allTf = !radar.allTf; radarInfo(); };
   $('rdList').addEventListener('click', function (ev) {
     if (ev.target.tagName !== 'BUTTON') return;
-    var row = ev.target.parentNode, a = radar.alerts[+row.getAttribute('data-i')];
+    var id = ev.target.parentNode.getAttribute('data-id'), a = null;
+    for (var q = 0; q < radar.alerts.length; q++) if (radar.alerts[q].id === id) a = radar.alerts[q];
     if (!a) return;
     $('radarBox').style.display = 'none';
     radarOpen(a);
