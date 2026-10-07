@@ -41,6 +41,11 @@ select { padding-right: 24px; }
 .up { color: #26a69a; } .dn { color: #ef5350; }
 .badge { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 8px; }
 .badge:empty { display: none; }
+.sg { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 8px; background: #2563eb; color: #fff; cursor: pointer; }
+.sg.t1 { background: #15803d; }
+.sg:empty { display: none; }
+.panel.sig-new { border: 2px solid #3b82f6; -webkit-animation: blinkB 1s infinite; animation: blinkB 1s infinite; }
+@-webkit-keyframes blinkB { 50% { border-color: #0e1116; } } @keyframes blinkB { 50% { border-color: #0e1116; } }
 .badge.alvo { background: #22c55e; color: #04130a; } .badge.stop { background: #ef4444; color: #fff; }
 .head .x { position: absolute; right: 6px; top: 0; height: 28px; margin-top: 3px; padding: 0 10px; font-size: 14px; background: #0e1116; border-color: #2a3240; z-index: 2; box-shadow: -8px 0 6px #0e1116; }
 
@@ -76,6 +81,30 @@ select { padding-right: 24px; }
 .it .c { display: inline-block; width: 18%; }
 .it .ck { float: right; color: #3b82f6; font-size: 18px; font-weight: 700; }
 #listMsg { padding: 30px; text-align: center; color: #6b7686; }
+
+#btnRadar.hot { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+#toasts { position: absolute; left: 10px; bottom: 28px; width: 300px; z-index: 30; }
+.toast { position: relative; margin-top: 8px; padding: 10px 12px 10px 12px; background: #13233d; border: 1px solid #2563eb; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5); -webkit-animation: tin 0.3s; animation: tin 0.3s; }
+@-webkit-keyframes tin { from { opacity: 0; -webkit-transform: translateY(10px); } to { opacity: 1; -webkit-transform: none; } }
+@keyframes tin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.toast .tt { font-size: 15px; color: #fff; padding-right: 30px; }
+.toast .td { font-size: 12px; color: #93a3b8; margin: 3px 0 8px; }
+.toast .op { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; height: 32px; }
+.toast .cl { position: absolute; top: 6px; right: 6px; height: 28px; padding: 0 9px; background: transparent; }
+
+#radarBox { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0e1116; z-index: 12; }
+#rdTop { position: absolute; top: 0; left: 0; right: 0; padding: 8px; background: #161b22; border-bottom: 1px solid #262d38; }
+#rdTop .row1 { height: 42px; white-space: nowrap; }
+#rdTop .row1 b { font-size: 17px; margin: 0 10px 0 4px; vertical-align: middle; }
+#rdClose { float: right; background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+#rdInfo { font-size: 12px; color: #8b95a5; line-height: 16px; padding: 2px 4px 0; }
+#rdList { position: absolute; top: 84px; left: 0; right: 0; bottom: 0; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+.ra { padding: 8px 14px; border-bottom: 1px solid #1a2029; white-space: nowrap; overflow: hidden; }
+.ra b { display: inline-block; width: 70px; font-size: 16px; vertical-align: middle; }
+.ra .sc { display: inline-block; width: 40px; text-align: center; background: #2563eb; color: #fff; font-weight: 700; border-radius: 4px; font-size: 13px; padding: 2px 0; margin-right: 12px; vertical-align: middle; }
+.ra .rd { display: inline-block; font-size: 12px; color: #8b95a5; line-height: 16px; vertical-align: middle; }
+.ra button { float: right; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -87,7 +116,9 @@ select { padding-right: 24px; }
     <option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option>
     <option value="4h">4h</option><option value="1d">1d</option>
   </select>
-  <button id="btnInd">Indicadores: on</button>
+  <button id="btnRadar">Radar</button>
+  <button id="btnInd">Indic: on</button>
+  <button id="btnSig">Sinais: on</button>
   <button id="btnSound">Som: off</button>
   <button id="btnLink">Link</button>
   <p id="status"><i></i><span>parado</span></p>
@@ -110,6 +141,21 @@ select { padding-right: 24px; }
   <div id="list"><div id="listMsg">Carregando lista da Binance...</div></div>
 </div>
 
+<div id="radarBox">
+  <div id="rdTop">
+    <div class="row1">
+      <b>Radar de sinais</b>
+      <button class="tog on" id="rdTog">Radar: on</button>
+      <button id="rdClear">Limpar</button>
+      <button id="rdClose">Fechar</button>
+    </div>
+    <div id="rdInfo"></div>
+  </div>
+  <div id="rdList"></div>
+</div>
+
+<div id="toasts"></div>
+
 <script>
 (function () {
   'use strict';
@@ -124,9 +170,44 @@ select { padding-right: 24px; }
   var SKIP = { USDC: 1, FDUSD: 1, TUSD: 1, BUSD: 1, DAI: 1, USDP: 1, EUR: 1, AEUR: 1, EURI: 1, USD1: 1, XUSD: 1, BFUSD: 1, USDE: 1, PYUSD: 1, RLUSD: 1, GBP: 1, TRY: 1, BRL: 1 };
 
   var apiIdx = 0, wsIdx = 0;
-  var state = { selected: [], interval: '15m', levels: {}, mode: 'top', sound: false, ind: true };
+  var state = { selected: [], interval: '15m', levels: {}, mode: 'top', sound: false, ind: true, sig: true, radar: true };
+  var radar = { list: [], listT: 0, alerts: [], seen: {}, gen: 0, scanning: false, prog: 0, total: 0, timer: null, htf: {}, unseen: 0, lastScan: 0, next: 0 };
   var h1 = {};  // preço de 1h atrás, por moeda
-  var IV_MS = { '1m': 6e4, '3m': 18e4, '5m': 3e5, '15m': 9e5, '30m': 18e5, '1h': 36e5, '4h': 144e5, '1d': 864e5 };
+  var IV_MS = { '1m': 6e4, '3m': 18e4, '5m': 3e5, '15m': 9e5, '30m': 18e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 };
+
+  // ---------- regras do score (padrão; regras.json, se existir, substitui) ----------
+  var RULES = {
+    score_forte: 70, score_fraco: 55,
+    peso_tendencia: 20, peso_tendencia_maior: 20, peso_ema50: 10, peso_rsi: 15, peso_volume: 15, peso_estrutura: 15, peso_candle: 5,
+    rsi_min: 50, rsi_max: 70, rsi_bloqueio: 75, volume_mult: 1.5, rompimento_candles: 15, pullback_tolerancia_pct: 0.2,
+    lateral_candles: 20, lateral_max_cruzamentos: 3, atr_periodo: 14, atr_min_pct: 0.15, esticado_max_atr: 2.5,
+    stop_candles: 5, stop_atr: 1.5, risco_max_atr: 3, alvo1_r: 1.5, alvo2_r: 3, intervalo_min_candles: 5,
+    tempo_maior: { '1m': '15m', '3m': '15m', '5m': '1h', '15m': '1h', '30m': '4h', '1h': '4h', '4h': '1d', '1d': '1w' },
+    radar: { top: 30, atualizar_lista_min: 60, fixas: [], so_fixas: false }
+  };
+  var RULES_VER = 0;
+  function loadRules() {
+    try {
+      var x = new XMLHttpRequest();
+      x.open('GET', 'regras.json?v=' + Math.floor(Date.now() / 6e5), true);
+      x.onload = function () {
+        if (x.status < 200 || x.status >= 300) return;
+        try {
+          var r = JSON.parse(x.responseText);
+          for (var k in r) {
+            if (!r.hasOwnProperty(k) || k.charAt(0) === '_' || !RULES.hasOwnProperty(k)) continue;
+            if (k === 'radar' && r.radar && typeof r.radar === 'object') {
+              for (var rk in r.radar) if (r.radar.hasOwnProperty(rk) && RULES.radar.hasOwnProperty(rk)) RULES.radar[rk] = r.radar[rk];
+            } else RULES[k] = r[k];
+          }
+          radar.listT = 0;  // regras novas: refaz a lista do radar
+          RULES_VER++;
+          for (var s in charts) if (charts.hasOwnProperty(s)) { loadHTF(charts[s]); calcSignals(charts[s]); updateHead(charts[s]); scheduleDraw(charts[s]); }
+        } catch (e) {}
+      };
+      x.send();
+    } catch (e) {}
+  }
   var charts = {};
   var tickers = [], tickMap = {}, tickTime = 0;
   var ws = null, wsGen = 0, wsAlive = false, lastMsg = 0, reconnTimer = null, pollTimer = null;
@@ -146,6 +227,8 @@ select { padding-right: 24px; }
         if (o.levels) state.levels = o.levels;
         if (o.mode) state.mode = o.mode;
         if (o.ind === false) state.ind = false;
+        if (o.sig === false) state.sig = false;
+        if (o.radar === false) state.radar = false;
       }
     } catch (e) {}
   }
@@ -177,6 +260,16 @@ select { padding-right: 24px; }
       if (out.length) state.selected = out;
     }
     if (tt && IV_MS[tt[1]]) state.interval = tt[1];
+    // níveis pelo link (&e=entrada&a=alvo&s=stop) vão para a primeira moeda do link
+    function num(nm) { var r = new RegExp('[?&]' + nm + '=([0-9.,]+)').exec(q); return r ? parseFloat(r[1].replace(',', '.')) : 0; }
+    var le = num('e'), la = num('a'), ls = num('s');
+    if (state.selected.length && (le > 0 || la > 0 || ls > 0)) {
+      var lv = {};
+      if (le > 0) { lv.e = le; lv.et = Date.now(); }
+      if (la > 0) lv.a = la;
+      if (ls > 0) lv.s = ls;
+      state.levels[state.selected[0]] = lv;
+    }
     save();
   }
   function copyText(txt) {
@@ -197,7 +290,7 @@ select { padding-right: 24px; }
 
   function save() {
     syncUrl();
-    try { window.localStorage.setItem('mc_state', JSON.stringify({ selected: state.selected, interval: state.interval, levels: state.levels, mode: state.mode, ind: state.ind })); } catch (e) {}
+    try { window.localStorage.setItem('mc_state', JSON.stringify({ selected: state.selected, interval: state.interval, levels: state.levels, mode: state.mode, ind: state.ind, sig: state.sig, radar: state.radar })); } catch (e) {}
   }
 
   // ---------- rede ----------
@@ -265,10 +358,176 @@ select { padding-right: 24px; }
       sum += c.candles[j].v;
       if (j >= 20) sum -= c.candles[j - 20].v;
     }
+    calcSignals(c);
     if (a == null || b == null || r == null) c.trend = '';
     else if (a > b && p > b && r > 50) c.trend = 'alta';
     else if (a < b && p < b && r < 50) c.trend = 'baixa';
     else c.trend = 'neutro';
+  }
+
+  // ---------- score de sinais de compra ----------
+  function atr(cs, n) {
+    var out = [], a = 0, sum = 0, i, k, tr;
+    for (i = 0; i < cs.length; i++) {
+      k = cs[i];
+      tr = i === 0 ? k.h - k.l : Math.max(k.h - k.l, Math.abs(k.h - cs[i - 1].c), Math.abs(k.l - cs[i - 1].c));
+      if (i < n) { sum += tr; if (i === n - 1) { a = sum / n; out.push(a); } else out.push(null); }
+      else { a = (a * (n - 1) + tr) / n; out.push(a); }
+    }
+    return out;
+  }
+
+  // candles do tempo maior (ex.: você vê 15m, a página confere o 1h)
+  function loadHTF(c) {
+    var iv = state.interval, hiv = RULES.tempo_maior[iv];
+    if (!hiv) { c.htf = null; return; }
+    get('/api/v3/klines?symbol=' + c.sym + '&interval=' + hiv + '&limit=200', function (d) {
+      if (!charts[c.sym] || iv !== state.interval) return;
+      var h = d.map(parseK), cl = h.map(function (k) { return k.c; });
+      c.htf = h; c.htfIv = hiv; c.hE9 = ema(cl, 9); c.hE21 = ema(cl, 21);
+      c.htfKey = h.length + ':' + h[h.length - 1].t;
+      calcSignals(c); updateHead(c); scheduleDraw(c);
+    });
+  }
+
+  // resultado de um sinal: metade sai no alvo 1 (stop vai para a entrada), metade no alvo 2
+  function resolveSig(s, cs, last) {
+    var t1hit = false, j, q;
+    s.res = 'aberto'; s.end = last;
+    for (j = s.i + 1; j <= last; j++) {
+      q = cs[j];
+      if (!t1hit) {
+        if (q.l <= s.s) { s.res = 'stop'; s.end = j; break; }   // na dúvida, conta o stop primeiro
+        if (q.h >= s.t2) { s.res = 'alvo2'; s.end = j; break; }
+        if (q.h >= s.t1) t1hit = true;
+      } else {
+        if (q.l <= s.e) { s.res = 'alvo1'; s.end = j; break; }
+        if (q.h >= s.t2) { s.res = 'alvo2'; s.end = j; break; }
+      }
+    }
+    if (s.res === 'aberto' && t1hit) s.res = 'alvo1aberto';
+    var R = RULES;
+    s.r = s.res === 'stop' ? -1 : s.res === 'alvo1' ? R.alvo1_r / 2 : s.res === 'alvo2' ? (R.alvo1_r + R.alvo2_r) / 2 : null;
+  }
+
+  function calcSignals(c) {
+    var cs = c.candles, len = cs.length, R = RULES, last = len - 2;  // o último candle ainda está em formação
+    if (last < 60 || !c.e9) { c.sigs = []; c.bt = null; c.act = null; return; }
+    var key = cs[last].t + '|' + cs[last].c + '|' + (c.htfKey || '') + '|' + RULES_VER + '|' + state.interval;
+    if (c.sigKey === key) return;
+    c.sigKey = key;
+
+    var ms = IV_MS[state.interval];
+    var cl = cs.map(function (k) { return k.c; });
+    var e50 = ema(cl, 50), at = atr(cs, R.atr_periodo), e9 = c.e9, e21 = c.e21, rs = c.rs;
+    var h = (c.htf && c.htfIv === R.tempo_maior[state.interval]) ? c.htf : null;
+    var hms = h ? IV_MS[c.htfIv] : 0, hi = -1;
+    var sigs = [], lastStrong = -999, lastAny = -999, openUntil = -1, i, j, k;
+
+    for (i = 50; i <= last; i++) {
+      k = cs[i];
+      // vela do tempo maior já FECHADA no momento deste candle
+      if (h) while (hi + 1 < h.length && h[hi + 1].t + hms <= k.t + ms) hi++;
+      if (e9[i] == null || e21[i] == null || rs[i] == null || at[i] == null || e50[i] == null) continue;
+      var a = at[i], r = rs[i];
+
+      // filtros
+      var cross = 0;
+      for (j = i - R.lateral_candles + 1; j <= i; j++) {
+        if (j < 1 || e9[j - 1] == null || e21[j - 1] == null) continue;
+        if ((e9[j] > e21[j]) !== (e9[j - 1] > e21[j - 1])) cross++;
+      }
+      if (cross >= R.lateral_max_cruzamentos) continue;               // mercado de lado
+      if (a / k.c * 100 < R.atr_min_pct) continue;                    // pouca volatilidade
+      if (r > R.rsi_bloqueio || (k.c - e21[i]) / a > R.esticado_max_atr) continue;  // esticado
+
+      // gatilho: rompimento ou pullback na EMA21
+      var hh = -Infinity;
+      for (j = Math.max(0, i - R.rompimento_candles); j < i; j++) if (cs[j].h > hh) hh = cs[j].h;
+      var breakout = k.c > hh;
+      var pullback = k.l <= e21[i] * (1 + R.pullback_tolerancia_pct / 100) && k.c > e21[i] && k.c > k.o && e9[i] > e21[i];
+      if (!breakout && !pullback) continue;
+
+      // pontuação
+      var sc = 0, det = [];
+      if (e9[i] > e21[i]) {
+        var full = e9[i] > e9[i - 1] && e21[i] > e21[i - 1];
+        sc += full ? R.peso_tendencia : R.peso_tendencia / 2; det.push('tendência' + (full ? '' : ' (½)'));
+      }
+      if (hi >= 0 && c.hE9[hi] != null && c.hE21[hi] != null && c.hE9[hi] > c.hE21[hi]) {
+        var hfull = h[hi].c > c.hE21[hi];
+        sc += hfull ? R.peso_tendencia_maior : R.peso_tendencia_maior / 2; det.push('tempo maior' + (hfull ? '' : ' (½)'));
+      }
+      if (k.c > e50[i]) { sc += R.peso_ema50; det.push('EMA50'); }
+      if (r >= R.rsi_min && r <= R.rsi_max) {
+        var rup = r > rs[i - 1];
+        sc += rup ? R.peso_rsi : R.peso_rsi / 2; det.push('RSI' + (rup ? '' : ' (½)'));
+      }
+      var vr = c.vr[i];
+      if (vr != null && vr >= R.volume_mult) { sc += R.peso_volume; det.push('volume'); }
+      else if (vr != null && vr >= 1.2) { sc += R.peso_volume / 2; det.push('volume (½)'); }
+      sc += R.peso_estrutura; det.push(breakout ? 'rompimento' : 'pullback');
+      var rg = k.h - k.l;
+      if (rg > 0 && (k.c - k.o) / rg >= 0.5 && (k.h - k.c) / rg <= 0.25) { sc += R.peso_candle; det.push('candle forte'); }
+      sc = Math.round(sc);
+
+      if (sc < R.score_fraco) continue;
+      var strong = sc >= R.score_forte;
+      // intervalo mínimo / não abrir outro sinal forte com um ainda aberto
+      if (strong && (i - lastStrong < R.intervalo_min_candles || i <= openUntil)) continue;
+      if (!strong && i - lastAny < R.intervalo_min_candles) continue;
+
+      // stop e alvos
+      var lowN = Infinity;
+      for (j = Math.max(0, i - R.stop_candles + 1); j <= i; j++) if (cs[j].l < lowN) lowN = cs[j].l;
+      var stop = Math.min(lowN, k.c - R.stop_atr * a), risk = k.c - stop;
+      if (!(risk > 0) || risk > R.risco_max_atr * a) continue;        // stop longe demais
+
+      var s = { i: i, t: k.t, score: sc, strong: strong, det: det, tipo: breakout ? 'rompimento' : 'pullback',
+                e: k.c, s: stop, t1: k.c + risk * R.alvo1_r, t2: k.c + risk * R.alvo2_r };
+      resolveSig(s, cs, last);
+      sigs.push(s);
+      lastAny = i;
+      if (strong) { lastStrong = i; openUntil = s.end; }
+    }
+
+    // tira o sinal fraco quando um forte aparece logo em seguida (evita etiquetas sobrepostas)
+    sigs = sigs.filter(function (g, ix) {
+      if (g.strong) return true;
+      for (var q = ix + 1; q < sigs.length; q++) {
+        if (sigs[q].i - g.i >= R.intervalo_min_candles) break;
+        if (sigs[q].strong) return false;
+      }
+      return true;
+    });
+
+    // teste no histórico (só sinais fortes)
+    var bt ={ n: 0, stop: 0, a1: 0, a2: 0, ab: 0, r: 0 };
+    for (j = 0; j < sigs.length; j++) {
+      var g = sigs[j];
+      if (!g.strong) continue;
+      bt.n++;
+      if (g.res === 'stop') bt.stop++; else if (g.res === 'alvo1') bt.a1++; else if (g.res === 'alvo2') bt.a2++; else bt.ab++;
+      if (g.r != null) bt.r += g.r;
+    }
+    c.sigs = sigs; c.bt = bt;
+
+    // sinal forte ainda em andamento
+    c.act = null;
+    for (j = sigs.length - 1; j >= 0; j--) {
+      if (sigs[j].strong) { if (sigs[j].res === 'aberto' || sigs[j].res === 'alvo1aberto') c.act = sigs[j]; break; }
+    }
+
+    // sinal novo no candle que acabou de fechar: alerta
+    var lastS = sigs.length ? sigs[sigs.length - 1] : null;
+    if (c.el && lastS && lastS.strong && lastS.i === last && c.alertT !== lastS.t && Date.now() - (lastS.t + ms) < Math.min(ms, 3e5)) {
+      c.alertT = lastS.t;
+      if (state.sig) {
+        beep(1046);
+        c.el.className = c.el.className.replace(/ ?sig-new/g, '') + ' sig-new';
+        setTimeout(function () { c.el.className = c.el.className.replace(/ ?sig-new/g, ''); }, 30000);
+      }
+    }
   }
 
   // variação de 1h: preço de abertura da janela de 1h, atualizado a cada minuto
@@ -310,7 +569,9 @@ select { padding-right: 24px; }
       if (!charts[c.sym] || interval !== state.interval) return;
       c.candles = d.map(parseK);
       c.err = '';
+      c.sigKey = null;
       calcInd(c);
+      loadHTF(c);
       updateHead(c);
       scheduleDraw(c);
     }, function () {
@@ -422,7 +683,7 @@ select { padding-right: 24px; }
     var el = document.createElement('div');
     el.className = 'panel';
     el.innerHTML =
-      '<div class="head"><button class="big">⤢</button><button class="x">✕</button><b class="sym"></b><span class="px"></span><span class="badge"></span><span class="chg"></span><span class="tr"></span></div>' +
+      '<div class="head"><button class="big">⤢</button><button class="x">✕</button><b class="sym"></b><span class="px"></span><span class="badge"></span><span class="sg"></span><span class="chg"></span><span class="tr"></span></div>' +
       '<div class="lv">' +
       '<input class="e" data-k="e" type="text" placeholder="Entrada" autocomplete="off" autocorrect="off" spellcheck="false">' +
       '<input class="a" data-k="a" type="text" placeholder="Alvo" autocomplete="off" autocorrect="off" spellcheck="false">' +
@@ -435,7 +696,7 @@ select { padding-right: 24px; }
       sym: sym, el: el, candles: [], err: '', hit: '', loading: false, dirty: false,
       canvas: el.getElementsByTagName('canvas')[0],
       symEl: el.querySelector('.sym'), pxEl: el.querySelector('.px'), chgEl: el.querySelector('.chg'),
-      badgeEl: el.querySelector('.badge'), rrEl: el.querySelector('.rr'), trEl: el.querySelector('.tr')
+      badgeEl: el.querySelector('.badge'), rrEl: el.querySelector('.rr'), trEl: el.querySelector('.tr'), sgEl: el.querySelector('.sg')
     };
     c.ctx = c.canvas.getContext('2d');
     c.symEl.textContent = sym.replace(/USDT$/, '') + '/USDT';
@@ -457,6 +718,32 @@ select { padding-right: 24px; }
       };
     }
     bindGestures(c);
+
+    // preenche Entrada / Alvo / Stop (usado pelo sinal e pelo link)
+    c.setLevels = function (e, a, s, et) {
+      var lv = {};
+      if (e > 0) { lv.e = +(+e).toPrecision(6); lv.et = et || Date.now(); }
+      if (a > 0) lv.a = +(+a).toPrecision(6);
+      if (s > 0) lv.s = +(+s).toPrecision(6);
+      if (lv.e || lv.a || lv.s) state.levels[sym] = lv; else delete state.levels[sym];
+      var ins = el.querySelectorAll('.lv input');
+      for (var q = 0; q < ins.length; q++) {
+        var kk = ins[q].getAttribute('data-k');
+        ins[q].value = lv[kk] ? fmtL(lv[kk]) : '';
+      }
+      save(); updateHead(c); scheduleDraw(c);
+    };
+    c.sgEl.onclick = function () {
+      var g = c.act;
+      if (!g) return;
+      var msg = 'Sinal de COMPRA · score ' + g.score + ' (' + g.tipo + ')\n' +
+        'Critérios: ' + g.det.join(', ') + '\n\n' +
+        'Entrada: ' + fmt(g.e) + '\nAlvo 1: ' + fmt(g.t1) + '\nAlvo 2: ' + fmt(g.t2) + '\nStop: ' + fmt(g.s) + '\n\n' +
+        'Usar Entrada, Alvo 1 e Stop nos seus campos?';
+      var L0 = state.levels[sym];
+      if (L0 && L0.e) msg += '\n(isso substitui os valores atuais)';
+      if (confirm(msg)) c.setLevels(g.e, g.t1, g.s, g.t + IV_MS[state.interval]);
+    };
     var L = state.levels[sym] || {};
     var inputs = el.querySelectorAll('.lv input');
     for (var i = 0; i < inputs.length; i++) {
@@ -607,6 +894,12 @@ select { padding-right: 24px; }
     c.chgEl.className = 'chg';
     c.chgEl.innerHTML = parts.join(' &nbsp;');
 
+    var g = state.sig ? c.act : null;
+    if (g) {
+      c.sgEl.className = 'sg' + (g.res === 'alvo1aberto' ? ' t1' : '');
+      c.sgEl.textContent = g.res === 'alvo1aberto' ? '◆ ALVO 1 ✓' : '◆ COMPRA ' + g.score;
+    } else { c.sgEl.textContent = ''; }
+
     if (state.ind && c.trend) {
       c.trEl.className = 'tr ' + c.trend;
       c.trEl.textContent = c.trend === 'alta' ? '▲ ALTA' : c.trend === 'baixa' ? '▼ BAIXA' : '● NEUTRO';
@@ -728,6 +1021,9 @@ select { padding-right: 24px; }
     if (L.a) lvList.push({ v: L.a, col: '#22c55e', n: 'A' });
     if (L.s) lvList.push({ v: L.s, col: '#ef4444', n: 'S' });
     for (i = 0; i < lvList.length; i++) { if (lvList[i].v > hi) hi = lvList[i].v; if (lvList[i].v < lo) lo = lvList[i].v; }
+    // sinal ativo: garante que stop e alvos apareçam na escala
+    var act = state.sig && c.act && c.act.i >= off && c.act.i < off + n ? c.act : null;
+    if (act) { if (act.t2 > hi) hi = act.t2; if (act.s < lo) lo = act.s; }
     var rng = hi - lo;
     if (!(rng > 0)) rng = Math.abs(hi) * 0.01 || 1;
     hi += rng * 0.05; lo -= rng * 0.05; rng = hi - lo;
@@ -811,13 +1107,74 @@ select { padding-right: 24px; }
         }
       }
       // legenda
+      // legenda no canto esquerdo (abaixo do resumo do teste, se houver)
       var leg = 'EMA9  EMA21' + (c.rsi != null ? '   RSI ' + Math.round(c.rsi) : '');
-      var lw = ctx.measureText(leg).width, lx = plotW - lw - 6;
-      ctx.fillStyle = '#f59e0b'; ctx.fillText('EMA9', lx, padT + 10);
-      ctx.fillStyle = '#a78bfa'; ctx.fillText('EMA21', lx + ctx.measureText('EMA9  ').width, padT + 10);
+      var lw = ctx.measureText(leg).width, lx = 6, ly = (state.sig && c.bt) ? padT + 27 : padT + 11;
+      ctx.fillStyle = 'rgba(14,17,22,0.8)';
+      ctx.fillRect(2, ly - 11, lw + 8, 15);
+      ctx.fillStyle = '#f59e0b'; ctx.fillText('EMA9', lx, ly);
+      ctx.fillStyle = '#a78bfa'; ctx.fillText('EMA21', lx + ctx.measureText('EMA9  ').width, ly);
       if (c.rsi != null) {
         ctx.fillStyle = c.rsi >= 70 ? '#ef4444' : c.rsi <= 30 ? '#22c55e' : '#8b95a5';
-        ctx.fillText('RSI ' + Math.round(c.rsi), lx + ctx.measureText('EMA9  EMA21   ').width, padT + 10);
+        ctx.fillText('RSI ' + Math.round(c.rsi), lx + ctx.measureText('EMA9  EMA21   ').width, ly);
+      }
+    }
+
+    // sinais de compra: etiqueta com o score abaixo do candle
+    if (state.sig && c.sigs) {
+      ctx.font = 'bold 10px -apple-system, Helvetica, Arial, sans-serif';
+      for (var si = 0; si < c.sigs.length; si++) {
+        var sg = c.sigs[si], vi = sg.i - off;
+        if (vi < 0 || vi >= n) continue;
+        var sx = xAt(vi), sy = y(vis[vi].l) + 18, txt = String(sg.score);
+        var tw = ctx.measureText(txt).width + 8;
+        ctx.globalAlpha = sg.strong ? 1 : 0.6;
+        ctx.fillStyle = sg.strong ? '#2563eb' : '#334155';
+        ctx.beginPath(); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx - 4, sy); ctx.lineTo(sx + 4, sy); ctx.closePath(); ctx.fill();
+        ctx.fillRect(Math.round(sx - tw / 2), sy, Math.round(tw), 14);
+        ctx.fillStyle = sg.strong ? '#fff' : '#cbd5e1';
+        ctx.fillText(txt, Math.round(sx - tw / 2 + 4), sy + 11);
+        // como terminou (nos sinais fortes já encerrados)
+        if (sg.strong && sg.res !== 'aberto' && sg.res !== 'alvo1aberto') {
+          ctx.fillStyle = sg.res === 'stop' ? '#ef4444' : '#22c55e';
+          ctx.fillText(sg.res === 'stop' ? '✕' : sg.res === 'alvo2' ? '✓✓' : '✓', Math.round(sx - tw / 2), sy + 26);
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.font = '11px -apple-system, Helvetica, Arial, sans-serif';
+
+      // linhas do sinal ativo, a partir do candle do sinal
+      if (act) {
+        var ax = xAt(act.i - off), lines2 = [
+          [act.t2, '#4ade80', 'Alvo 2'], [act.t1, '#4ade80', 'Alvo 1'], [act.e, '#93c5fd', 'Sinal'], [act.s, '#f87171', 'Stop']
+        ];
+        ctx.fillStyle = 'rgba(59,130,246,0.07)';
+        ctx.fillRect(ax, y(act.t2), plotW - ax, y(act.s) - y(act.t2));
+        for (var la = 0; la < lines2.length; la++) {
+          var lyy = Math.round(y(lines2[la][0])) + 0.5;
+          ctx.strokeStyle = lines2[la][1]; ctx.globalAlpha = 0.8;
+          ctx.beginPath(); ctx.moveTo(ax, lyy); ctx.lineTo(plotW, lyy); ctx.stroke();
+          ctx.globalAlpha = 1;
+          var lt = lines2[la][2] + ' ' + fmt(lines2[la][0]), ltw = ctx.measureText(lt).width;
+          ctx.fillStyle = 'rgba(14,17,22,0.85)';
+          ctx.fillRect(plotW - ltw - 8, lyy - 14, ltw + 6, 13);
+          ctx.fillStyle = lines2[la][1];
+          ctx.fillText(lt, plotW - ltw - 5, lyy - 4);
+        }
+      }
+
+      // teste no histórico (sinais fortes)
+      var bt = c.bt;
+      if (bt) {
+        var fech = bt.stop + bt.a1 + bt.a2, btTxt;
+        if (!bt.n) btTxt = 'Teste ' + len + ' candles: nenhum sinal forte';
+        else btTxt = 'Teste ' + len + 'c: ' + bt.n + ' sinais · ✓' + (bt.a1 + bt.a2) + ' ✕' + bt.stop +
+          (bt.ab ? ' · ' + bt.ab + ' aberto' : '') +
+          (fech ? ' · ' + Math.round((bt.a1 + bt.a2) / fech * 100) + '% · ' + (bt.r >= 0 ? '+' : '') + bt.r.toFixed(1) + 'R' : '');
+        ctx.fillStyle = 'rgba(14,17,22,0.8)';
+        ctx.fillRect(2, padT, ctx.measureText(btTxt).width + 8, 15);
+        ctx.fillStyle = !fech ? '#8b95a5' : bt.r >= 0 ? '#4ade80' : '#f87171';
+        ctx.fillText(btTxt, 6, padT + 11);
       }
     }
 
@@ -962,8 +1319,15 @@ select { padding-right: 24px; }
   $('btnDone').onclick = closePicker;
   $('btnCoins').onclick = openPicker;
 
-  $('selInt').onchange = function () { state.interval = this.value; save(); rebuild(true); };
-  function indLabel() { $('btnInd').textContent = 'Indicadores: ' + (state.ind ? 'on' : 'off'); }
+  $('selInt').onchange = function () { state.interval = this.value; save(); rebuild(true); radarRestart(); };
+  function indLabel() {
+    $('btnInd').textContent = 'Indic: ' + (state.ind ? 'on' : 'off');
+    $('btnSig').textContent = 'Sinais: ' + (state.sig ? 'on' : 'off');
+  }
+  $('btnSig').onclick = function () {
+    state.sig = !state.sig; save(); indLabel();
+    for (var s in charts) if (charts.hasOwnProperty(s)) { updateHead(charts[s]); scheduleDraw(charts[s]); }
+  };
   $('btnInd').onclick = function () {
     state.ind = !state.ind; save(); indLabel();
     for (var s in charts) if (charts.hasOwnProperty(s)) { updateHead(charts[s]); scheduleDraw(charts[s]); }
@@ -981,7 +1345,8 @@ select { padding-right: 24px; }
   window.addEventListener('orientationchange', onResize);
 
   // voltou de tela apagada: recarrega tudo
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) rebuild(true); });
+  // ao voltar, refaz a varredura (o Safari congela a página com a tela apagada)
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { rebuild(true); radarRestart(3000); } });
   window.addEventListener('pageshow', function (e) { if (e.persisted) rebuild(true); });
 
   // atualiza a variação 24h de vez em quando
@@ -989,14 +1354,228 @@ select { padding-right: 24px; }
     if (state.selected.length) loadTickers(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); });
   }, 300000);
 
+  // ======================= RADAR =======================
+  // varre outras moedas em segundo plano, logo após o fechamento de cada candle
+  function normSym(s) {
+    s = String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return !s ? '' : /USDT$/.test(s) ? s : s + 'USDT';
+  }
+  function radarBuildList() {
+    var R = RULES.radar, out = [], i, s, count = 0;
+    if (!R.so_fixas) {
+      for (i = 0; i < tickers.length && count < R.top; i++) { out.push(tickers[i].s); count++; }
+    }
+    var fx = R.fixas || [];
+    for (i = 0; i < fx.length; i++) { s = normSym(fx[i]); if (s && out.indexOf(s) < 0) out.push(s); }
+    radar.list = out;
+  }
+  function radarEnsureList(cb) {
+    var stale = Date.now() - radar.listT > RULES.radar.atualizar_lista_min * 6e4;
+    if (!stale && tickers.length) { radarBuildList(); cb(); return; }
+    loadTickers(function () { radar.listT = Date.now(); radarBuildList(); cb(); });
+  }
+
+  function radarRestart(delay) {
+    radar.gen++;
+    radar.scanning = false;
+    clearTimeout(radar.timer);
+    radarBtn();
+    if (!state.radar) return;
+    radar.timer = setTimeout(radarScan, delay == null ? 2000 : delay);
+  }
+  function radarSchedule() {
+    clearTimeout(radar.timer);
+    if (!state.radar) return;
+    var ms = IV_MS[state.interval];
+    radar.next = Math.floor(Date.now() / ms) * ms + ms + 4000;   // 4s depois do fechamento
+    radar.timer = setTimeout(radarScan, Math.max(1000, radar.next - Date.now()));
+  }
+
+  function radarScan() {
+    if (!state.radar) return;
+    var gen = ++radar.gen, iv = state.interval;
+    radar.scanning = true; radar.prog = 0; radarBtn();
+    radarEnsureList(function () {
+      if (gen !== radar.gen) return;
+      var list = radar.list.filter(function (s) { return state.selected.indexOf(s) < 0; }), idx = 0;
+      radar.total = list.length;
+      function nextCoin() {
+        if (gen !== radar.gen || !state.radar || iv !== state.interval) return;
+        if (idx >= list.length) {
+          radar.scanning = false; radar.lastScan = Date.now();
+          radarBtn(); radarInfo(); radarSchedule();
+          return;
+        }
+        var sym = list[idx++];
+        radar.prog = idx; radarBtn();
+        radarCheck(sym, iv, function () { setTimeout(nextCoin, 350); });
+      }
+      nextCoin();
+    });
+  }
+
+  function radarCheck(sym, iv, done) {
+    get('/api/v3/klines?symbol=' + sym + '&interval=' + iv + '&limit=' + LIMIT, function (d) {
+      if (iv !== state.interval || !d || d.length < 70) { done(); return; }
+      var o = { sym: sym, candles: d.map(parseK) };
+      var hiv = RULES.tempo_maior[iv];
+      function fin() {
+        try {
+          calcInd(o);   // calcula indicadores + sinais com as mesmas regras dos painéis
+          var last = o.candles.length - 2, g = o.act;
+          if (g && g.res === 'aberto' && last - g.i <= 1) radarAlert(sym, iv, g);
+        } catch (e) {}
+        done();
+      }
+      if (!hiv) { fin(); return; }
+      var key = sym + '|' + hiv, hc = radar.htf[key], hms = IV_MS[hiv];
+      // reaproveita o tempo maior enquanto não fecha um candle novo nele
+      if (hc && hc[hc.length - 1].t === Math.floor(Date.now() / hms) * hms) { setHtf(o, hc, hiv); fin(); return; }
+      get('/api/v3/klines?symbol=' + sym + '&interval=' + hiv + '&limit=200', function (hd) {
+        var h = hd.map(parseK);
+        radar.htf[key] = h;
+        setHtf(o, h, hiv); fin();
+      }, fin);
+    }, done);
+  }
+  function setHtf(o, h, hiv) {
+    var cl = h.map(function (k) { return k.c; });
+    o.htf = h; o.htfIv = hiv; o.hE9 = ema(cl, 9); o.hE21 = ema(cl, 21);
+    o.htfKey = h.length + ':' + h[h.length - 1].t;
+  }
+
+  // ---------- avisos ----------
+  function radarLoad() {
+    try {
+      var a = JSON.parse(window.localStorage.getItem('mc_radar') || '[]');
+      if (a && a.length) { radar.alerts = a; a.forEach(function (x) { radar.seen[x.id] = 1; }); }
+    } catch (e) {}
+  }
+  function radarSave() {
+    try { window.localStorage.setItem('mc_radar', JSON.stringify(radar.alerts.slice(0, 50))); } catch (e) {}
+  }
+  function radarAlert(sym, iv, g) {
+    var id = sym + '|' + iv + '|' + g.t;
+    if (radar.seen[id]) return;
+    radar.seen[id] = 1;
+    var a = { id: id, sym: sym, iv: iv, score: g.score, tipo: g.tipo, det: g.det, e: g.e, s: g.s, t1: g.t1, t2: g.t2, t: g.t, at: Date.now() };
+    radar.alerts.unshift(a);
+    if (radar.alerts.length > 50) radar.alerts.length = 50;
+    radar.unseen++;
+    radarSave(); radarBtn(); radarInfo();
+    showToast(a);
+    beep(1046);
+  }
+  function ago(a) { return durLabel(Date.now() - (a.t + IV_MS[a.iv])); }
+
+  function showToast(a) {
+    var box = $('toasts'), el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = '<div class="tt"><b>◆ ' + a.sym.replace(/USDT$/, '') + '</b> · COMPRA ' + a.score + '</div>' +
+      '<div class="td">' + a.iv + ' · ' + a.tipo + ' · entrada ' + fmt(a.e) + '</div>' +
+      '<button class="op">Abrir</button><button class="cl">✕</button>';
+    el.querySelector('.op').onclick = function () { box.removeChild(el); radarOpen(a); };
+    el.querySelector('.cl').onclick = function () { box.removeChild(el); };
+    box.insertBefore(el, box.firstChild);
+    while (box.children.length > 3) box.removeChild(box.lastChild);
+  }
+
+  function radarBtn() {
+    var b = $('btnRadar');
+    if (!state.radar) { b.textContent = 'Radar: off'; b.className = ''; return; }
+    if (radar.scanning && radar.total) b.textContent = 'Radar ⟳ ' + radar.prog + '/' + radar.total;
+    else b.textContent = 'Radar' + (radar.unseen ? ' (' + radar.unseen + ')' : '');
+    b.className = radar.unseen ? 'hot' : '';
+  }
+
+  function radarInfo() {
+    if ($('radarBox').style.display !== 'block') return;
+    var R = RULES.radar, hm = function (t) { var d = new Date(t); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+    var info = state.radar
+      ? 'Vigiando ' + radar.list.filter(function (s) { return state.selected.indexOf(s) < 0; }).length + ' moedas no ' + state.interval +
+        (R.so_fixas ? ' (lista fixa)' : ' (top ' + R.top + (R.fixas && R.fixas.length ? ' + ' + R.fixas.length + ' fixas' : '') + ')') +
+        (radar.scanning ? ' · varrendo ' + radar.prog + '/' + radar.total : radar.next ? ' · próxima varredura ' + hm(radar.next) : '') +
+        (radar.listT ? ' · lista de ' + hm(radar.listT) : '')
+      : 'Radar desligado.';
+    $('rdInfo').textContent = info;
+    $('rdTog').textContent = 'Radar: ' + (state.radar ? 'on' : 'off');
+    $('rdTog').className = 'tog' + (state.radar ? ' on' : '');
+    var html = [];
+    for (var i = 0; i < radar.alerts.length; i++) {
+      var a = radar.alerts[i];
+      html.push('<div class="ra" data-i="' + i + '"><b>' + a.sym.replace(/USDT$/, '') + '</b>' +
+        '<span class="sc">' + a.score + '</span>' +
+        '<span class="rd">' + a.iv + ' · ' + a.tipo + ' · há ' + ago(a) + '<br>E ' + fmt(a.e) + ' · S ' + fmt(a.s) + ' · A1 ' + fmt(a.t1) + '</span>' +
+        '<button>Abrir</button></div>');
+    }
+    $('rdList').innerHTML = html.length ? html.join('') : '<div id="listMsg">Nenhum sinal ainda. Os avisos aparecem aqui e no canto da tela.</div>';
+  }
+
+  // abre a moeda: painel livre, ou substitui o último sem operação marcada; depois amplia
+  function radarOpen(a) {
+    var ivChanged = a.iv !== state.interval;
+    if (ivChanged) { state.interval = a.iv; $('selInt').value = a.iv; }
+    if (state.selected.indexOf(a.sym) < 0) {
+      if (state.selected.length < MAX_CHARTS) state.selected.push(a.sym);
+      else {
+        var pos = -1, i;
+        for (i = state.selected.length - 1; i >= 0; i--) {
+          var L = state.levels[state.selected[i]];
+          if (!L || !L.e) { pos = i; break; }
+        }
+        if (pos < 0) {
+          pos = state.selected.length - 1;
+          if (!confirm('Todos os painéis têm operação marcada.\nSubstituir ' + state.selected[pos].replace(/USDT$/, '') + ' por ' + a.sym.replace(/USDT$/, '') + '?\n(os níveis dela ficam guardados)')) return;
+        }
+        state.selected[pos] = a.sym;
+      }
+    }
+    expanded = a.sym;
+    save();
+    rebuild(ivChanged);
+    if (ivChanged) radarRestart();
+  }
+
+  function openRadar() {
+    radar.unseen = 0; radarBtn();
+    $('radarBox').style.display = 'block';
+    radarInfo();
+  }
+
   // ---------- início ----------
   setInterval(loadH1, 60000);
+  // tempo maior: atualiza a cada 3 minutos
+  setInterval(function () { for (var s in charts) if (charts.hasOwnProperty(s)) loadHTF(charts[s]); }, 180000);
   // atualiza o tempo de operação mesmo sem tick novo
   setInterval(function () { for (var s in charts) if (charts.hasOwnProperty(s)) updateHead(charts[s]); }, 30000);
 
   load();
   applyLink();
   syncUrl();
+  loadRules();
+  radarLoad();
+
+  $('btnRadar').onclick = openRadar;
+  $('rdClose').onclick = function () { $('radarBox').style.display = 'none'; };
+  $('rdTog').onclick = function () {
+    state.radar = !state.radar; save();
+    radarRestart(500); radarInfo();
+  };
+  $('rdClear').onclick = function () {
+    if (!radar.alerts.length || !confirm('Apagar a lista de avisos?')) return;
+    radar.alerts = []; radarSave(); radarInfo();
+  };
+  $('rdList').addEventListener('click', function (ev) {
+    if (ev.target.tagName !== 'BUTTON') return;
+    var row = ev.target.parentNode, a = radar.alerts[+row.getAttribute('data-i')];
+    if (!a) return;
+    $('radarBox').style.display = 'none';
+    radarOpen(a);
+  });
+  // a lista mostra "há X min": atualiza enquanto aberta
+  setInterval(radarInfo, 30000);
+  radarBtn();
+  radarRestart(4000);
   indLabel();
   $('btnLink').onclick = function () {
     if (!state.selected.length) { alert('Escolha pelo menos uma moeda primeiro.'); return; }

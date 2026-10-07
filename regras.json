@@ -1,0 +1,47 @@
+{
+  "_info": "Regras do score de sinais de COMPRA. Pesos somam 100. Altere os valores e envie de novo para o GitHub.",
+
+  "score_forte": 70,
+  "score_fraco": 55,
+
+  "peso_tendencia": 20,
+  "peso_tendencia_maior": 20,
+  "peso_ema50": 10,
+  "peso_rsi": 15,
+  "peso_volume": 15,
+  "peso_estrutura": 15,
+  "peso_candle": 5,
+
+  "rsi_min": 50,
+  "rsi_max": 70,
+  "rsi_bloqueio": 75,
+  "volume_mult": 1.5,
+  "rompimento_candles": 15,
+  "pullback_tolerancia_pct": 0.2,
+
+  "lateral_candles": 20,
+  "lateral_max_cruzamentos": 3,
+  "atr_periodo": 14,
+  "atr_min_pct": 0.15,
+  "esticado_max_atr": 2.5,
+
+  "stop_candles": 5,
+  "stop_atr": 1.5,
+  "risco_max_atr": 3,
+  "alvo1_r": 1.5,
+  "alvo2_r": 3,
+  "intervalo_min_candles": 5,
+
+  "radar": {
+    "_info": "top = quantas moedas por volume; fixas = moedas que você quer vigiar sempre (ex: [\"BTC\",\"SOL\"]); so_fixas = true ignora o top e usa só as fixas",
+    "top": 30,
+    "atualizar_lista_min": 60,
+    "fixas": [],
+    "so_fixas": false
+  },
+
+  "tempo_maior": {
+    "1m": "15m", "3m": "15m", "5m": "1h", "15m": "1h",
+    "30m": "4h", "1h": "4h", "4h": "1d", "1d": "1w"
+  }
+}
